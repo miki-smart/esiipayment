@@ -1,0 +1,73 @@
+name: pages
+
+# Builds the mkdocs site (mkdocs.yml at repo root) and deploys it to
+# GitHub Pages. Runs on every push to main; also triggerable by hand.
+# See docs.yml, which regenerates docs/generated/ separately.
+#
+# mkdocs' docs_dir (_docs/) is a build-time mirror of the repo root
+# (see mkdocs.yml), assembled by the "stage docs" step below so every
+# existing relative markdown link resolves unchanged, with no link
+# rewriting needed. Nothing under _docs/ is committed; see .gitignore.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: install mkdocs
+        run: pip install -r requirements-docs.txt
+
+      - name: stage docs
+        run: |
+          set -e
+          mkdir -p _docs/.github
+          cp -r spec _docs/spec
+          cp -r docs _docs/docs
+          cp -r schema _docs/schema
+          cp -r vectors _docs/vectors
+          cp -r providers _docs/providers
+          cp -r .github/workflows _docs/.github/workflows
+          cp .github/CODEOWNERS _docs/.github/CODEOWNERS
+          cp LICENSE _docs/LICENSE
+          cp VERSION _docs/VERSION
+          cp GOVERNANCE.md _docs/GOVERNANCE.md
+          cp CONTRIBUTING.md _docs/CONTRIBUTING.md
+          cp SECURITY.md _docs/SECURITY.md
+          cp CODE_OF_CONDUCT.md _docs/CODE_OF_CONDUCT.md
+          cp README.md _docs/index.md
+
+      - name: build site
+        run: mkdocs build --site-dir _site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

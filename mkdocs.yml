@@ -1,0 +1,84 @@
+site_name: ESIIPayment
+site_description: >-
+  A language-neutral contract for accepting payments from Ethiopian
+  payment service providers through one uniform interface.
+site_url: https://miki-smart.github.io/esiipayment/
+repo_url: https://github.com/miki-smart/esiipayment
+repo_name: miki-smart/esiipayment
+edit_uri: edit/main/
+
+# _docs/ is a build-time mirror of the repo root, assembled by
+# .github/workflows/pages.yml's "stage docs" step: README.md ->
+# _docs/index.md, plus copies of spec/, docs/, schema/, vectors/,
+# providers/, .github/, LICENSE, VERSION, and the root project docs.
+# It reproduces the repo's real layout one level deeper so every
+# existing relative markdown link (docs/x.md -> ../spec/y.md, spec/x.md
+# -> ../docs/y.md, etc.) resolves unchanged, with no link rewriting.
+# Nothing under _docs/ is committed; see .gitignore. docs_dir can't be
+# the repo root itself here because mkdocs refuses a docs_dir that is
+# (an ancestor of) the directory holding mkdocs.yml.
+docs_dir: _docs
+site_dir: _site
+
+theme:
+  name: material
+  icon:
+    repo: fontawesome/brands/github
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.top
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.action.edit
+    - toc.follow
+
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+
+nav:
+  - Home: index.md
+  - Tutorial: docs/tutorial.md
+  - Guides:
+      - Add a Provider: docs/add-a-provider.md
+      - Build a Runtime: docs/build-a-runtime.md
+      - Use a Provider: docs/use-a-provider.md
+  - Specification:
+      - Overview: spec/00-overview.md
+      - Domain Model: spec/01-domain-model.md
+      - Invariants: spec/02-invariants.md
+      - Manifest DSL: spec/03-manifest-dsl.md
+      - Expression Language: spec/04-expression-language.md
+      - Webhooks: spec/05-webhooks.md
+      - Conformance: spec/06-conformance.md
+      - Runtime Requirements: spec/07-runtime-requirements.md
+      - Versioning: spec/08-versioning.md
+  - Generated Reference:
+      - Provider Catalog: docs/generated/catalog.md
+      - Schema Reference: docs/generated/schema-reference.md
+  - Project:
+      - Contributing: CONTRIBUTING.md
+      - Governance: GOVERNANCE.md
+      - Security: SECURITY.md
+      - Code of Conduct: CODE_OF_CONDUCT.md

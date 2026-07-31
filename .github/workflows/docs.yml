@@ -24,6 +24,7 @@ on:
       - "providers/**"
       - "schema/**"
       - "tools/validator/**"
+  workflow_dispatch:
 
 jobs:
   generate:
@@ -84,8 +85,8 @@ jobs:
             exit 1
           }
 
-      - name: commit regenerated docs (push to main only)
-        if: github.event_name == 'push'
+      - name: commit regenerated docs (push to main, or manual dispatch)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         run: |
           if ! git diff --quiet -- docs/generated/; then
             git config user.name "esiipayment-bot"
