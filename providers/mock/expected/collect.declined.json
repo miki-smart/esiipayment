@@ -1,0 +1,1 @@
+{"failure":{"failure_code":"InsufficientFunds","retry_class":"DoNotRetry"},"idempotency_key":"MOCK-COLLECT-DECLINED-0001","next_action":null,"operation":"collect","state":{},"status":"Failed"}

@@ -1,0 +1,67 @@
+{
+  "$comment": "Canonical JSON vectors per spec/06-conformance.md#canonical-json. Every runtime's canonicalization routine must produce `expected` exactly, byte-for-byte, from `input`. `input` is given as parsed JSON for readability; a runtime's serializer output is what's being tested, not its parser. Array element order is never sorted; only object keys are. Money integers must render as bare integers; timestamps must render as fixed-precision UTC with a literal Z.",
+  "cases": [
+    {
+      "description": "flat object, keys out of order",
+      "input": { "b": 2, "a": 1 },
+      "expected": "{\"a\":1,\"b\":2}"
+    },
+    {
+      "description": "nested objects, keys sorted at every level independently",
+      "input": { "status": "Succeeded", "amount": { "minor_units": 10000, "currency": "ETB" }, "created_at": "2026-01-15T09:30:00Z" },
+      "expected": "{\"amount\":{\"currency\":\"ETB\",\"minor_units\":10000},\"created_at\":\"2026-01-15T09:30:00Z\",\"status\":\"Succeeded\"}"
+    },
+    {
+      "description": "deeply nested object, keys sorted at every level",
+      "input": { "nested": { "z": 1, "y": 2, "x": { "b": 1, "a": 2 } } },
+      "expected": "{\"nested\":{\"x\":{\"a\":2,\"b\":1},\"y\":2,\"z\":1}}"
+    },
+    {
+      "description": "array element order is preserved, never sorted",
+      "input": [3, 1, 2],
+      "expected": "[3,1,2]"
+    },
+    {
+      "description": "array of objects: element order preserved, each object's own keys sorted",
+      "input": { "list": [{ "b": 1, "a": 2 }, { "b": 3, "a": 4 }] },
+      "expected": "{\"list\":[{\"a\":2,\"b\":1},{\"a\":4,\"b\":3}]}"
+    },
+    {
+      "description": "Money minor_units must render as a bare integer, never a float, even at a round major-unit value",
+      "input": { "minor_units": 10000, "currency": "ETB" },
+      "expected": "{\"currency\":\"ETB\",\"minor_units\":10000}",
+      "why": "10000 minor units is exactly 100.00 ETB; a serializer that 'helpfully' normalizes a round integer to a float representation (10000.0) or scientific notation (1e4) violates Invariant I1 at the serialization layer even though the underlying value was correctly an integer. See spec/02-invariants.md#i1."
+    },
+    {
+      "description": "negative Money value renders with a leading minus and no other change",
+      "input": { "minor_units": -2550, "currency": "ETB" },
+      "expected": "{\"currency\":\"ETB\",\"minor_units\":-2550}"
+    },
+    {
+      "description": "zero Money value renders as bare 0, not 0.0",
+      "input": { "minor_units": 0, "currency": "ETB" },
+      "expected": "{\"currency\":\"ETB\",\"minor_units\":0}"
+    },
+    {
+      "description": "large integer within int64 range renders in full, never in exponential notation",
+      "input": { "minor_units": 100000000, "currency": "ETB" },
+      "expected": "{\"currency\":\"ETB\",\"minor_units\":100000000}"
+    },
+    {
+      "description": "timestamp is ISO-8601 UTC, second precision, literal Z offset",
+      "input": { "created_at": "2026-01-15T09:30:00Z" },
+      "expected": "{\"created_at\":\"2026-01-15T09:30:00Z\"}",
+      "why": "Never fractional seconds (2026-01-15T09:30:00.000Z) and never a +00:00 offset form; both are logically equivalent but not byte-identical, which is the only bar that matters here. See spec/06-conformance.md."
+    },
+    {
+      "description": "no insignificant whitespace anywhere, including around the empty object and empty array",
+      "input": { "state": {}, "history": [] },
+      "expected": "{\"history\":[],\"state\":{}}"
+    },
+    {
+      "description": "string values use standard JSON escaping; forward slash is not escaped and non-ASCII is emitted as UTF-8, not \\u-escaped",
+      "input": { "url": "https://pay.example.et/abc", "name": "ባንእት" },
+      "expected": "{\"name\":\"ባንእት\",\"url\":\"https://pay.example.et/abc\"}"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+{
+  "$comment": "The full PaymentStatus transition matrix per spec/02-invariants.md#i2. Rule: a transition from any TERMINAL state (Succeeded, Failed, Canceled, Expired) to any state (including back to itself) is illegal. A transition from any NON-TERMINAL state (RequiresAction, Processing) to any state is legal, since those states exist precisely to lead somewhere else. Every runtime's state machine must reject every pair marked legal: false.",
+  "states": ["RequiresAction", "Processing", "Succeeded", "Failed", "Canceled", "Expired"],
+  "terminal_states": ["Succeeded", "Failed", "Canceled", "Expired"],
+  "note_on_terminal_self_transitions": "A terminal state 'transitioning' to the same terminal state (e.g. a redelivered webhook re-reporting Succeeded) is marked illegal here as an FSM transition, but this is not the same thing as rejecting the redelivery outright; per spec/05-webhooks.md, a runtime must recognize the record is already terminal and short-circuit to a no-op returning the existing result, rather than ever reaching this transition check with an attempt to change already-settled state. This matrix defines what the FSM permits when an update is actually applied; the redelivery case is handled by never applying an update to a terminal record in the first place.",
+  "transitions": [
+    { "from": "RequiresAction", "to": "RequiresAction", "legal": true, "note": "still awaiting the same user action, e.g. re-polled before the user has acted" },
+    { "from": "RequiresAction", "to": "Processing", "legal": true, "note": "user completed the required action; provider is now processing" },
+    { "from": "RequiresAction", "to": "Succeeded", "legal": true, "note": "user action led directly to a synchronous success" },
+    { "from": "RequiresAction", "to": "Failed", "legal": true, "note": "user action led directly to a synchronous failure" },
+    { "from": "RequiresAction", "to": "Canceled", "legal": true, "note": "user or integrator canceled before completing the required action" },
+    { "from": "RequiresAction", "to": "Expired", "legal": true, "note": "the action window elapsed" },
+
+    { "from": "Processing", "to": "RequiresAction", "legal": true, "note": "e.g. an OTP attempt failed and a fresh OTP submission is required" },
+    { "from": "Processing", "to": "Processing", "legal": true, "note": "still in flight, re-polled with no new information" },
+    { "from": "Processing", "to": "Succeeded", "legal": true, "note": "the ordinary successful completion path" },
+    { "from": "Processing", "to": "Failed", "legal": true, "note": "the ordinary failure completion path" },
+    { "from": "Processing", "to": "Canceled", "legal": true, "note": "canceled while in flight" },
+    { "from": "Processing", "to": "Expired", "legal": true, "note": "elapsed while in flight" },
+
+    { "from": "Succeeded", "to": "RequiresAction", "legal": false },
+    { "from": "Succeeded", "to": "Processing", "legal": false },
+    { "from": "Succeeded", "to": "Succeeded", "legal": false },
+    { "from": "Succeeded", "to": "Failed", "legal": false },
+    { "from": "Succeeded", "to": "Canceled", "legal": false },
+    { "from": "Succeeded", "to": "Expired", "legal": false },
+
+    { "from": "Failed", "to": "RequiresAction", "legal": false },
+    { "from": "Failed", "to": "Processing", "legal": false },
+    { "from": "Failed", "to": "Succeeded", "legal": false },
+    { "from": "Failed", "to": "Failed", "legal": false },
+    { "from": "Failed", "to": "Canceled", "legal": false },
+    { "from": "Failed", "to": "Expired", "legal": false },
+
+    { "from": "Canceled", "to": "RequiresAction", "legal": false },
+    { "from": "Canceled", "to": "Processing", "legal": false },
+    { "from": "Canceled", "to": "Succeeded", "legal": false },
+    { "from": "Canceled", "to": "Failed", "legal": false },
+    { "from": "Canceled", "to": "Canceled", "legal": false },
+    { "from": "Canceled", "to": "Expired", "legal": false },
+
+    { "from": "Expired", "to": "RequiresAction", "legal": false },
+    { "from": "Expired", "to": "Processing", "legal": false },
+    { "from": "Expired", "to": "Succeeded", "legal": false },
+    { "from": "Expired", "to": "Failed", "legal": false },
+    { "from": "Expired", "to": "Canceled", "legal": false },
+    { "from": "Expired", "to": "Expired", "legal": false }
+  ]
+}

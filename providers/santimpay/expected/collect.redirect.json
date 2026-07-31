@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"SANTIMPAY-COLLECT-REDIRECT-0001","next_action":"RedirectToUrl","operation":"collect","state":{"checkout_url":"https://pay.santimpay.com/checkout/9f8a7b6c"},"status":"RequiresAction"}

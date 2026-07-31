@@ -1,0 +1,24 @@
+{
+  "$comment": "The canonical, fixed FailureCode -> RetryClass mapping, per spec/01-domain-model.md#retryclass and Invariant I10 (spec/02-invariants.md#i10). This mapping is not configurable by any adapter, provider, or integrator. esiipayment validate rejects any manifest errors[] entry whose declared retry_class disagrees with this table for its failure_code. Every runtime's retry logic must read from this table (or an exact copy of it), not hardcode a divergent mapping.",
+  "mapping": {
+    "InsufficientFunds": "DoNotRetry",
+    "InvalidRecipient": "DoNotRetry",
+    "RecipientLimitExceeded": "DoNotRetry",
+    "SenderLimitExceeded": "DoNotRetry",
+    "DuplicateRequest": "DoNotRetry",
+    "AuthFailed": "DoNotRetry",
+    "AuthorizationDeclined": "DoNotRetry",
+    "ProviderUnavailable": "SafeToRetry",
+    "ProviderTimeout": "ResolveFirst",
+    "InvalidRequest": "DoNotRetry",
+    "UnsupportedOperation": "DoNotRetry",
+    "Expired": "DoNotRetry",
+    "CanceledByUser": "DoNotRetry",
+    "Unknown": "ResolveFirst"
+  },
+  "highest_severity_case": {
+    "failure_code": "ProviderTimeout",
+    "correct_retry_class": "ResolveFirst",
+    "why": "A timeout means the request may or may not have reached and been processed by the provider. Mapping this to SafeToRetry is the highest-severity defect this system is designed to prevent, because a naive retry after an actually-processed request creates a second real payment. See spec/01-domain-model.md#why-providertimeout-is-not-safetoretry and Invariant I4."
+  }
+}

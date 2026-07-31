@@ -1,0 +1,27 @@
+{
+  "$comment": "Condition vectors per spec/04-expression-language.md#conditions. Each case evaluates one path against `document`, compares against one literal, using exactly one of the five operators. No boolean composition exists in this language, so every case is a single comparison.",
+  "document": {
+    "status": "success",
+    "amount": 1500,
+    "currency": "ETB",
+    "data": {
+      "items": [{ "code": "pending" }, { "code": "success" }]
+    }
+  },
+  "cases": [
+    { "description": "== true case", "path": "$.status", "operator": "==", "literal": "success", "result": true },
+    { "description": "== false case", "path": "$.status", "operator": "==", "literal": "failed", "result": false },
+    { "description": "!= true case", "path": "$.status", "operator": "!=", "literal": "failed", "result": true },
+    { "description": "!= false case", "path": "$.status", "operator": "!=", "literal": "success", "result": false },
+    { "description": "> true case, numeric", "path": "$.amount", "operator": ">", "literal": 1000, "result": true },
+    { "description": "> false case, numeric", "path": "$.amount", "operator": ">", "literal": 2000, "result": false },
+    { "description": "> false case, equal values", "path": "$.amount", "operator": ">", "literal": 1500, "result": false },
+    { "description": "< true case, numeric", "path": "$.amount", "operator": "<", "literal": 2000, "result": true },
+    { "description": "< false case, numeric", "path": "$.amount", "operator": "<", "literal": 1000, "result": false },
+    { "description": "in true case, literal list", "path": "$.currency", "operator": "in", "literal": ["ETB", "USD"], "result": true },
+    { "description": "in false case, literal list", "path": "$.currency", "operator": "in", "literal": ["USD", "EUR"], "result": false },
+    { "description": "comparison against a value from a wildcard-projected array is not supported by this language; conditions read one scalar path, never a projection", "path": "$.data.items[0].code", "operator": "==", "literal": "pending", "result": true },
+    { "description": "missing path never equals any literal, including the empty string", "path": "$.data.absent", "operator": "==", "literal": "", "result": false },
+    { "description": "missing path is never `in` any list, including one containing an empty string", "path": "$.data.absent", "operator": "in", "literal": ["", "success"], "result": false }
+  ]
+}

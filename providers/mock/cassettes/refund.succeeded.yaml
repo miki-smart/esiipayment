@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+name: refund.succeeded
+operation: refund
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "MOCK-REFUND-SUCCEEDED-0001"
+environment: sandbox
+intent:
+  amount: 5000
+  currency: ETB
+interactions:
+  - request:
+      method: POST
+      path: /v1/refund
+      body: '{"reference":"MOCK-REFUND-SUCCEEDED-0001","amount":"50.00"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"data":{"scenario":"succeeded"}}'

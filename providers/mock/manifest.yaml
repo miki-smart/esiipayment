@@ -1,0 +1,319 @@
+
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+
+# The mock provider is not a real payment provider. It has no credentials,
+# makes no real network calls, and is completely deterministic: every
+# PaymentStatus and every NextAction can be produced on demand by choosing
+# the right `method` value on the integrator's request. This is what lets a
+# runtime implementer build and prove an entire runtime (validation, flow
+# execution, golden-output replay, webhook handling) before ever touching
+# a real provider's API. See providers/mock/metadata.yaml and
+# spec/07-runtime-requirements.md.
+#
+# The dispatch mechanism: `collect`'s single call step sends
+# `${intent.method}` to the mock's own fake endpoint, which simply echoes
+# it back as `data.scenario`. The flow then routes on that echoed value:
+# either through `errors` (for the auth-failure and provider-declined
+# scenarios, and the mandatory transport-timeout case) or through
+# `status_map` (for every PaymentStatus/NextAction combination). Every
+# scenario value below has a matching cassette in providers/mock/cassettes/.
+
+provider: mock
+spec_version: "1.0"
+display_name: "Mock (Reference Implementation)"
+country: ET
+currencies: [ETB, USD]
+
+environments:
+  sandbox:
+    base_url: https://mock.esiipayment.et/api
+  production:
+    base_url: https://mock.esiipayment.et/api
+
+auth:
+  shape: none
+  fields: []
+
+capabilities:
+  operations: [collect, sync, payout, cancel, refund, webhook]
+  # Every NextAction variant, because the whole point of this provider is
+  # to be able to produce every one of them on demand.
+  next_actions:
+    [None, RedirectToUrl, AwaitDevicePush, SubmitOtp, DisplayQr, ShowTransferDetails, DialUssd, Poll, Capture]
+  currencies:
+    ETB: { min_amount: 1, max_amount: 100000000000 }
+    USD: { min_amount: 1, max_amount: 100000000000 }
+
+operations:
+  collect: { entry_flow: collect }
+  sync: { entry_flow: sync }
+  payout: { entry_flow: payout }
+  cancel: { entry_flow: cancel }
+  refund: { entry_flow: refund }
+  webhook: { entry_flow: webhook }
+
+flows:
+  # collect: one call, dispatched on intent.method. This is the flow that
+  # demonstrates every PaymentStatus/NextAction combination; see the
+  # cassette list in providers/mock/cassettes/collect.*.yaml, one per
+  # `method` value below.
+  collect:
+    steps:
+      initialize:
+        call:
+          method: POST
+          path: /v1/collect
+          body:
+            scenario: ${intent.method}
+            amount: ${amount_major(intent.amount)}
+            currency: ${intent.currency}
+            reference: ${idempotency_key}
+        triggers: [return]
+        # errors (checked first, see spec/03-manifest-dsl.md#how-errors-interacts-with-status_map)
+        # handles method: auth_error, declined, and the transport-timeout
+        # case. Every other method value below is handled by status_map.
+        status_map:
+          path: $.data.scenario
+          values:
+            succeeded: succeeded
+            canceled: canceled
+            expired: expired
+            redirect: ra_redirect
+            device_push: ra_device_push
+            otp: ra_otp
+            qr: ra_qr
+            transfer: ra_transfer
+            ussd: ra_ussd
+            capture: ra_capture
+            poll: proc_poll
+            none: proc_none
+        emit:
+          state:
+            scenario: ${extract.data.scenario}
+
+      succeeded:
+        emit: { status: Succeeded }
+
+      canceled:
+        emit: { status: Canceled }
+
+      expired:
+        emit: { status: Expired }
+
+      ra_redirect:
+        emit:
+          status: RequiresAction
+          next_action: RedirectToUrl
+          state:
+            checkout_url: ${extract.data.checkout_url}
+
+      ra_device_push:
+        emit:
+          status: RequiresAction
+          next_action: AwaitDevicePush
+
+      ra_otp:
+        emit:
+          status: RequiresAction
+          next_action: SubmitOtp
+
+      ra_qr:
+        emit:
+          status: RequiresAction
+          next_action: DisplayQr
+          state:
+            qr_payload: ${extract.data.qr_payload}
+
+      ra_transfer:
+        emit:
+          status: RequiresAction
+          next_action: ShowTransferDetails
+          state:
+            account_number: ${extract.data.account_number}
+
+      ra_ussd:
+        emit:
+          status: RequiresAction
+          next_action: DialUssd
+          state:
+            ussd_code: ${extract.data.ussd_code}
+
+      ra_capture:
+        emit:
+          status: RequiresAction
+          next_action: Capture
+
+      proc_poll:
+        emit:
+          status: Processing
+          next_action: Poll
+
+      proc_none:
+        emit:
+          status: Processing
+          next_action: None
+
+  # sync: re-queries the same reference. The mock's fake endpoint echoes
+  # back the scenario originally recorded for that reference, so sync is
+  # idempotent by construction; repeated calls return the same answer
+  # until a webhook (see below) resolves it.
+  sync:
+    steps:
+      query:
+        call:
+          method: GET
+          path: /v1/collect/${idempotency_key}
+        triggers: [return]
+        status_map:
+          path: $.data.scenario
+          values:
+            succeeded: succeeded
+            canceled: canceled
+            expired: expired
+            redirect: ra_redirect
+            device_push: ra_device_push
+            otp: ra_otp
+            qr: ra_qr
+            transfer: ra_transfer
+            ussd: ra_ussd
+            capture: ra_capture
+            poll: proc_poll
+            none: proc_none
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      canceled:
+        emit: { status: Canceled }
+      expired:
+        emit: { status: Expired }
+      ra_redirect:
+        emit: { status: RequiresAction, next_action: RedirectToUrl }
+      ra_device_push:
+        emit: { status: RequiresAction, next_action: AwaitDevicePush }
+      ra_otp:
+        emit: { status: RequiresAction, next_action: SubmitOtp }
+      ra_qr:
+        emit: { status: RequiresAction, next_action: DisplayQr }
+      ra_transfer:
+        emit: { status: RequiresAction, next_action: ShowTransferDetails }
+      ra_ussd:
+        emit: { status: RequiresAction, next_action: DialUssd }
+      ra_capture:
+        emit: { status: RequiresAction, next_action: Capture }
+      proc_poll:
+        emit: { status: Processing, next_action: Poll }
+      proc_none:
+        emit: { status: Processing, next_action: None }
+
+  # payout: disbursement, kept to the three outcomes a payout realistically
+  # needs: Succeeded, Failed (via errors), and Processing+Poll for an
+  # asynchronous provider acknowledgement.
+  payout:
+    steps:
+      initialize:
+        call:
+          method: POST
+          path: /v1/payout
+          body:
+            scenario: ${intent.method}
+            amount: ${amount_major(intent.amount)}
+            currency: ${intent.currency}
+            reference: ${idempotency_key}
+        triggers: [return]
+        status_map:
+          path: $.data.scenario
+          values:
+            succeeded: succeeded
+            poll: proc_poll
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      proc_poll:
+        emit: { status: Processing, next_action: Poll }
+
+  cancel:
+    steps:
+      initialize:
+        call:
+          method: POST
+          path: /v1/cancel
+          body:
+            reference: ${idempotency_key}
+        triggers: [return]
+        status_map:
+          path: $.data.scenario
+          values:
+            canceled: canceled
+        emit: {}
+
+      canceled:
+        emit: { status: Canceled }
+
+  refund:
+    steps:
+      initialize:
+        call:
+          method: POST
+          path: /v1/refund
+          body:
+            reference: ${idempotency_key}
+            amount: ${amount_major(intent.amount)}
+        triggers: [return]
+        status_map:
+          path: $.data.scenario
+          values:
+            succeeded: succeeded
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+
+  # webhook: an inbound callback resolving a previously-collected reference
+  # straight to a terminal state. The mock provider signs nothing
+  # (webhook.verification.scheme: none below) since it has no credentials
+  # to sign with; see providers/chapa, providers/arifpay, or
+  # providers/santimpay for a manifest exercising real signature
+  # verification.
+  webhook:
+    steps:
+      receive:
+        triggers: [webhook]
+        status_map:
+          path: $.scenario
+          values:
+            succeeded: succeeded
+            canceled: canceled
+            expired: expired
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      canceled:
+        emit: { status: Canceled }
+      expired:
+        emit: { status: Expired }
+
+errors:
+  - match:
+      path: $.data.scenario
+      equals: auth_error
+    failure_code: AuthFailed
+    retry_class: DoNotRetry
+
+  - match:
+      path: $.data.scenario
+      equals: declined
+    failure_code: InsufficientFunds
+    retry_class: DoNotRetry
+
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst
+
+webhook:
+  verification:
+    scheme: none
+  body_format: json

@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction, not recorded real ArifPay traffic; see the
+# PROVISIONAL banner in ../manifest.yaml.
+name: sync.succeeded
+operation: sync
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "ARIFPAY-SYNC-SUCCEEDED-0001"
+environment: sandbox
+credentials:
+  api_key: "fixture-not-a-real-key"
+intent: {}
+# sync reads ${state.session_id}, which only exists after a prior collect
+# wrote it. This standalone cassette seeds it as pre-existing state, as if
+# persisted by an earlier collect under the same idempotency key.
+state:
+  session_id: sess_9f8a7b6c
+interactions:
+  - request:
+      method: GET
+      path: /api/checkout/session/sess_9f8a7b6c
+      headers: { x-arifpay-key: "fixture-not-a-real-key" }
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"error":false,"data":{"status":"SUCCESS","sessionId":"sess_9f8a7b6c"}}'

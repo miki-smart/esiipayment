@@ -1,0 +1,37 @@
+name: Provider manifest bug
+description: An existing provider's manifest.yaml, metadata.yaml, or cassettes are wrong.
+title: "[provider-name] "
+labels: ["bug", "adapter"]
+body:
+  - type: input
+    id: provider
+    attributes:
+      label: Provider
+      placeholder: e.g. chapa
+    validations:
+      required: true
+  - type: textarea
+    id: what-is-wrong
+    attributes:
+      label: What's wrong?
+      description: An endpoint path, field name, status mapping, or NextAction choice that doesn't match the real provider's current behaviour.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: What's your evidence?
+      description: >-
+        A link to current provider documentation, or a description of
+        observed sandbox/production behaviour. This is exactly the kind
+        of correction that moves a manifest's metadata.yaml
+        verification.status from provisional toward verified — the more
+        concrete, the better.
+    validations:
+      required: true
+  - type: textarea
+    id: validator-output
+    attributes:
+      label: esiipayment validate / esiipayment replay output (if applicable)
+      description: Paste output if you ran the validator against this provider.
+      render: text

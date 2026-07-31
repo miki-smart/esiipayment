@@ -1,0 +1,194 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+#
+# PROVISIONAL: see providers/arifpay/metadata.yaml. Confidence in this
+# manifest's accuracy is LOWER than providers/chapa's: endpoint paths,
+# field names, response shapes, and especially the webhook verification
+# scheme below are best-effort reconstructions from general recollection
+# of ArifPay's public gateway, not from current, verified documentation.
+# Treat every path and field name in this file as a guess to be confirmed
+# against https://developer.arifpay.org (or whatever ArifPay's current
+# developer portal is) before use against a real account. The cassettes
+# in providers/arifpay/cassettes/ are illustrative reconstructions, not
+# recorded real traffic.
+
+provider: arifpay
+spec_version: "1.0"
+display_name: "ArifPay"
+country: ET
+currencies: [ETB]
+
+environments:
+  # UNVERIFIED: modeled with a single gateway host and no separate
+  # sandbox/production distinction, matching a vague recollection that
+  # ArifPay's test/live mode is a property of the merchant account and API
+  # key rather than a separate host. If ArifPay does expose a distinct
+  # sandbox host, this needs correcting.
+  sandbox:
+    base_url: https://gateway.arifpay.net
+  production:
+    base_url: https://gateway.arifpay.net
+
+auth:
+  # UNVERIFIED shape and field/header names.
+  shape: api_key
+  fields:
+    - name: api_key
+      description: >-
+        API key issued by ArifPay for the merchant account. Recalled as
+        sent via an "x-arifpay-key" request header (see flows below);
+        confirm the exact header name against current documentation.
+
+capabilities:
+  operations: [collect, sync, webhook]
+  next_actions: [RedirectToUrl, Poll]
+  currencies:
+    ETB:
+      # UNVERIFIED placeholders.
+      min_amount: 100
+      max_amount: 50000000
+
+operations:
+  collect:
+    entry_flow: collect
+  sync:
+    entry_flow: sync
+  webhook:
+    entry_flow: webhook
+
+flows:
+  collect:
+    steps:
+      initialize:
+        call:
+          method: POST
+          # UNVERIFIED path.
+          path: /api/checkout/session
+          headers:
+            x-arifpay-key: ${credentials.api_key}
+          body:
+            # UNVERIFIED modeling choice: ArifPay's real API is recalled to
+            # be beneficiary-based (a payment can be split across multiple
+            # settlement accounts, each with its own amount), rather than
+            # a single top-level amount like Chapa's. This manifest models
+            # the common single-beneficiary case (the entire amount
+            # settling to the merchant's one configured account) as a
+            # one-element beneficiaries list. A real integration handling
+            # split settlement would need a richer intent shape than
+            # ESIIPayment's core collect() call provides; that is out of
+            # scope for this manifest.
+            phone: ${msisdn_et(intent.phone)}
+            email: ${intent.email}
+            expireDate: ${iso8601(intent.expires_at)}
+            cancelUrl: ${ctx.cancel_url}
+            successUrl: ${ctx.return_url}
+            errorUrl: ${ctx.return_url}
+            notifyUrl: ${ctx.webhook_url}
+            beneficiaries:
+              # accountNumber is merchant configuration (which bank account
+              # settles the funds), not a secret; it belongs in ctx, not
+              # credentials (Invariant I9 reserves credentials for secret
+              # material the runtime injects at auth time).
+              accountNumber: ${ctx.settlement_account}
+              amount: ${amount_major(intent.amount)}
+        triggers: [return]
+        status_map:
+          # UNVERIFIED response shape, recalled roughly as
+          # {"error": false, "data": {"paymentUrl": "...", "sessionId": "..."}}
+          # on success. Modeled here as a boolean "error" field rather than
+          # a string status, unlike Chapa/SantimPay; confirm this is
+          # actually how ArifPay signals success vs failure on this call.
+          # (status_map.values keys are always strings; a boolean/numeric
+          # extracted value is matched against its string form, "false"/
+          # "true"/"0" etc.; see spec/03-manifest-dsl.md.)
+          path: $.error
+          values:
+            "false": awaiting_redirect
+        emit:
+          state:
+            session_id: ${extract.data.sessionId}
+            payment_url: ${extract.data.paymentUrl}
+
+      awaiting_redirect:
+        emit:
+          status: RequiresAction
+          next_action: RedirectToUrl
+
+  sync:
+    steps:
+      query:
+        call:
+          method: GET
+          # UNVERIFIED path: a session-status lookup is assumed to exist;
+          # its actual shape is unconfirmed.
+          path: /api/checkout/session/${state.session_id}
+          headers:
+            x-arifpay-key: ${credentials.api_key}
+        triggers: [return]
+        status_map:
+          # UNVERIFIED path and enum values.
+          path: $.data.status
+          values:
+            SUCCESS: succeeded
+            PENDING: still_processing
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      still_processing:
+        emit: { status: Processing, next_action: Poll }
+
+  webhook:
+    steps:
+      receive:
+        triggers: [webhook]
+        status_map:
+          # UNVERIFIED path and payload shape for the notifyUrl callback.
+          path: $.status
+          values:
+            SUCCESS: succeeded
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+
+errors:
+  # UNVERIFIED: modeled on the same boolean "error" convention assumed
+  # above for the initialize response.
+  - match:
+      path: $.error
+      equals: true
+    failure_code: InvalidRequest
+    retry_class: DoNotRetry
+
+  - match:
+      path: $.data.status
+      equals: FAILED
+    failure_code: AuthorizationDeclined
+    retry_class: DoNotRetry
+
+  - match:
+      http_status: 401
+    failure_code: AuthFailed
+    retry_class: DoNotRetry
+
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst
+
+webhook:
+  verification:
+    # UNVERIFIED, and lower-confidence than the equivalent field in
+    # providers/chapa/manifest.yaml: there is no confirmed recollection of
+    # ArifPay using an HMAC signature header on its notifyUrl callback at
+    # all. "none" is used here deliberately rather than guessing a
+    # plausible-sounding header name and secret scheme that would be
+    # presented as fact; see spec/05-webhooks.md, where scheme: none is
+    # explicitly called out as rare and a red flag on a real (non-mock)
+    # provider. This MUST be resolved: either to a real verification
+    # scheme, or confirmed as a genuine gap needing a different mitigation
+    # (e.g. treating the webhook as an event to re-verify via sync rather
+    # than trusting the callback body directly), before this manifest
+    # moves past "provisional".
+    scheme: none
+  body_format: json

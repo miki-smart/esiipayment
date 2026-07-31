@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+name: payout.succeeded
+operation: payout
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "MOCK-PAYOUT-SUCCEEDED-0001"
+environment: sandbox
+intent:
+  amount: 25000
+  currency: ETB
+  method: succeeded
+interactions:
+  - request:
+      method: POST
+      path: /v1/payout
+      body: '{"scenario":"succeeded","amount":"250.00","currency":"ETB","reference":"MOCK-PAYOUT-SUCCEEDED-0001"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"data":{"scenario":"succeeded"}}'

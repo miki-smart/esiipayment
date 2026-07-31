@@ -1,0 +1,11 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Adapter author guide
+    url: https://github.com/esiipayment/esiipayment-spec/blob/main/docs/add-a-provider.md
+    about: Read this before opening a new-provider request or provider bug report.
+  - name: Runtime implementer guide
+    url: https://github.com/esiipayment/esiipayment-spec/blob/main/docs/build-a-runtime.md
+    about: Read this before opening a conformance issue.
+  - name: Security vulnerability
+    url: https://github.com/esiipayment/esiipayment-spec/blob/main/SECURITY.md
+    about: Do not open a public issue for security reports — see SECURITY.md.

@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction of an initialize-time validation failure;
+# see the PROVISIONAL banner in ../manifest.yaml. Exercises the
+# `path: $.status, equals: failed` entry in manifest.yaml's errors list.
+name: collect.invalid_request
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "CHAPA-COLLECT-INVALID-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/chapa"
+  return_url: "https://merchant.example/return/chapa"
+intent:
+  amount: 15000
+  currency: ETB
+  email: "not-an-email"
+  first_name: "Abebe"
+  last_name: "Kebede"
+interactions:
+  - request:
+      method: POST
+      path: /v1/transaction/initialize
+      body: '{"amount":"150.00","currency":"ETB","email":"not-an-email","first_name":"Abebe","last_name":"Kebede","tx_ref":"CHAPA-COLLECT-INVALID-0001","callback_url":"https://merchant.example/webhooks/chapa","return_url":"https://merchant.example/return/chapa"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"message":"Validation error: email is invalid","status":"failed"}'

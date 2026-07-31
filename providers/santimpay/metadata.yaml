@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+
+provider: santimpay
+tier: community
+description: >-
+  Ethiopian payment gateway. This entry holds the provider's place in the
+  catalog; its manifest is a low-confidence placeholder structure, not a
+  description of SantimPay's real API; see the verification notes below
+  and the warning banner at the top of manifest.yaml.
+
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    LOWEST confidence of the three real providers in this repository.
+    Unlike chapa and arifpay, this manifest is not built from a specific
+    (even if fuzzy) recollection of SantimPay's actual API; it follows
+    the general hosted-checkout pattern common to Ethiopian PSPs, filled
+    in with the least speculative defaults available, because no more
+    specific knowledge was available to draw on. Every endpoint path,
+    field name, the auth mechanism itself (including whether "api_key" is
+    even the right CredentialShape; SantimPay may use asymmetric request
+    signing, which this manifest deliberately does not guess at), and the
+    webhook scheme are unconfirmed. This manifest should be treated as a
+    structural starting point for a contributor with real SantimPay
+    access and documentation, not as a source of truth about SantimPay
+    itself, until a maintainer replaces it with a verified version.
+
+maintainers: []
+
+links:
+  website: https://santimpay.com
+  docs: https://developer.santimpay.com

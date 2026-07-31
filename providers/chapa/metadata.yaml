@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+
+provider: chapa
+tier: community
+description: >-
+  Ethiopian payment aggregator offering a hosted checkout supporting local
+  bank cards, mobile money, and bank transfers, plus a transaction-verify
+  endpoint and webhook callbacks.
+
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    This manifest was written from general recollection of Chapa's public
+    API (developer.chapa.co), not from a current, licensed read of its
+    documentation, and not from any employer's integration code; see the
+    clean-room note in CONTRIBUTING.md. Endpoint paths
+    (/v1/transaction/initialize, /v1/transaction/verify/{tx_ref}), exact
+    request/response field names, amount limits, and (with lowest
+    confidence) the webhook signature header name and scheme are all
+    marked inline in manifest.yaml as UNVERIFIED and must be confirmed
+    against current Chapa documentation and a real sandbox account before
+    this manifest is used for anything beyond reviewing the shape of the
+    approach. Do not treat any field in manifest.yaml as fact until this
+    status changes to "verified".
+
+maintainers: []
+
+links:
+  website: https://chapa.co
+  docs: https://developer.chapa.co

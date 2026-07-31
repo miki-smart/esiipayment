@@ -1,0 +1,44 @@
+name: New provider request
+description: Ask for a payment provider to be added, or claim one to work on yourself.
+title: "[provider] Add <provider name>"
+labels: ["new-provider", "adapter"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Read [docs/add-a-provider.md](../../docs/add-a-provider.md) first —
+        it walks through the whole process. This issue is for requesting
+        or claiming a provider, not for the manifest PR itself.
+  - type: input
+    id: provider-name
+    attributes:
+      label: Provider name
+      placeholder: e.g. Kaafi, M-Birr, HelloCash
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What does this provider offer?
+      description: Market (Ethiopia-wide, specific region), payment methods (mobile money, bank transfer, cards, USSD), and anything distinctive about its integration.
+    validations:
+      required: true
+  - type: dropdown
+    id: intent
+    attributes:
+      label: Are you volunteering to write this manifest?
+      options:
+        - "Yes, I'll open the PR myself"
+        - "No, I'm requesting someone else pick this up"
+    validations:
+      required: true
+  - type: textarea
+    id: knowledge-source
+    attributes:
+      label: Where does your knowledge of this provider's API come from?
+      description: >-
+        Public documentation, your own sandbox testing, prior integration
+        experience written up from memory (never from an employer's
+        proprietary source — see the clean-room note in CONTRIBUTING.md).
+        This isn't a gate to request a provider, but if you plan to write
+        the manifest yourself it's worth thinking about now.

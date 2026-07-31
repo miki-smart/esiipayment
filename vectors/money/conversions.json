@@ -1,0 +1,71 @@
+{
+  "$comment": "Vectors for the amount_major transform (spec/03-manifest-dsl.md#field-transforms): converts a signed integer minor-unit amount to a major-unit decimal string, using the exponent for `currency` from exponents.json. amount_major is exact and involves no rounding: the exponent fixes the decimal point position, it never divides a value that doesn't land on it. Every runtime's amount_major implementation must match every case here byte-for-byte.",
+  "cases": [
+    {
+      "description": "Typical ETB amount, exponent 2",
+      "minor_units": 10000,
+      "currency": "ETB",
+      "major": "100.00"
+    },
+    {
+      "description": "Smallest positive ETB unit (1 santim)",
+      "minor_units": 1,
+      "currency": "ETB",
+      "major": "0.01"
+    },
+    {
+      "description": "Zero amount",
+      "minor_units": 0,
+      "currency": "ETB",
+      "major": "0.00"
+    },
+    {
+      "description": "Negative amount (refund/reversal): sign is preserved, never dropped",
+      "minor_units": -2550,
+      "currency": "ETB",
+      "major": "-25.50"
+    },
+    {
+      "description": "Amount under one major unit still pads to full exponent width",
+      "minor_units": 5,
+      "currency": "ETB",
+      "major": "0.05"
+    },
+    {
+      "description": "Large amount, exponent 2",
+      "minor_units": 100000000,
+      "currency": "ETB",
+      "major": "1000000.00"
+    },
+    {
+      "description": "Zero-exponent currency: minor units equal major units, no decimal point",
+      "minor_units": 15000,
+      "currency": "JPY",
+      "major": "15000"
+    },
+    {
+      "description": "Zero-exponent currency, single unit",
+      "minor_units": 1,
+      "currency": "UGX",
+      "major": "1"
+    },
+    {
+      "description": "Three-decimal-place currency (fils)",
+      "minor_units": 1500,
+      "currency": "KWD",
+      "major": "1.500"
+    },
+    {
+      "description": "Three-decimal-place currency, sub-unit amount pads to full width",
+      "minor_units": 7,
+      "currency": "BHD",
+      "major": "0.007"
+    },
+    {
+      "description": "Negative amount, zero-exponent currency",
+      "minor_units": -42,
+      "currency": "JPY",
+      "major": "-42"
+    }
+  ]
+}

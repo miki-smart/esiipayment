@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"MOCK-COLLECT-TRANSFER-0001","next_action":"ShowTransferDetails","operation":"collect","state":{"account_number":"1000234567890","scenario":"transfer"},"status":"RequiresAction"}

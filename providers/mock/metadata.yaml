@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+
+provider: mock
+tier: official
+description: >-
+  Fully specified, deterministic reference provider. No credentials, no
+  network dependency, no real money movement. Produces every PaymentStatus
+  and every NextAction on demand, keyed by the `method` value passed to
+  collect. This is the provider a runtime implementer builds and proves
+  correctness against before integrating any real Ethiopian PSP, and the
+  provider integrators use to build and test a checkout offline.
+
+verification:
+  status: verified
+  docs_verified_on: "2026-07-31"
+  verified_by: esiipayment-maintainers
+  notes: >-
+    There is no external API for this provider to verify against: its
+    manifest is the specification of its own behaviour. "Verified" here
+    means the manifest's cassettes and expected/ outputs were checked by
+    the core team for internal consistency (every declared scenario has a
+    cassette, every cassette's expected output matches the manifest's own
+    flow logic), not that it was checked against third-party docs.
+
+maintainers:
+  - name: ESIIPayment Maintainers
+    github: esiipayment
+
+links: {}

@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.esiipayment.et/schema/metadata.v1.schema.json",
+  "title": "ESIIPayment Provider Metadata",
+  "description": "Catalog and provenance information for one provider, stored at providers/<provider>/metadata.yaml. Drives the generated provider catalog and capability matrix (docs.yml) and the adapter-tier and verification-status displays. Separate from manifest.yaml, which is purely technical.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["provider", "tier", "verification", "description"],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Must match the provider slug in the sibling manifest.yaml and the directory name."
+    },
+    "tier": {
+      "type": "string",
+      "enum": ["community", "certified", "official"],
+      "description": "Adapter tier. community: validates, cassettes present, golden output matches. certified: adds a live sandbox run and a named maintainer. official: core-team maintained, provider acknowledged. See GOVERNANCE.md."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One or two sentences describing this provider for the generated catalog."
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "docs_verified_on", "verified_by", "notes"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["provisional", "verified"],
+          "description": "provisional: endpoint paths, field names, and webhook signature scheme are unverified against current provider documentation. verified: a maintainer has confirmed this manifest against current, licensed-to-read provider documentation. Must be displayed prominently in the generated catalog."
+        },
+        "docs_verified_on": {
+          "type": ["string", "null"],
+          "format": "date",
+          "description": "ISO-8601 date this manifest was last checked against provider documentation. Must be null while status is provisional; must be a date once status is verified."
+        },
+        "verified_by": {
+          "type": ["string", "null"],
+          "description": "GitHub handle of the maintainer who performed the verification. Must be null while status is provisional; must be set once status is verified."
+        },
+        "notes": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text caveats. While provisional, must explain which fields are unverified and why. Never present a guess as a confirmed fact here."
+        }
+      },
+      "if": {
+        "properties": { "status": { "const": "verified" } }
+      },
+      "then": {
+        "properties": {
+          "docs_verified_on": { "type": "string", "format": "date" },
+          "verified_by": { "type": "string", "minLength": 1 }
+        }
+      },
+      "else": {
+        "properties": {
+          "docs_verified_on": { "const": null },
+          "verified_by": { "const": null }
+        }
+      }
+    },
+    "maintainers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "github"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "github": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9-]+$",
+            "description": "GitHub handle, without the leading @."
+          }
+        }
+      },
+      "description": "Named maintainers for this provider. Required to have at least one entry when tier is certified or official."
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "website": { "type": "string", "format": "uri" },
+        "docs": { "type": "string", "format": "uri" }
+      },
+      "description": "Public links shown in the generated catalog."
+    }
+  },
+  "if": {
+    "properties": { "tier": { "enum": ["certified", "official"] } }
+  },
+  "then": {
+    "required": ["maintainers"],
+    "properties": {
+      "maintainers": { "type": "array", "minItems": 1 }
+    }
+  }
+}

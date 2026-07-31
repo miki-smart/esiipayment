@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+name: collect.device_push
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "MOCK-COLLECT-DEVICE-PUSH-0001"
+environment: sandbox
+intent:
+  amount: 10000
+  currency: ETB
+  method: device_push
+interactions:
+  - request:
+      method: POST
+      path: /v1/collect
+      body: '{"scenario":"device_push","amount":"100.00","currency":"ETB","reference":"MOCK-COLLECT-DEVICE-PUSH-0001"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"data":{"scenario":"device_push"}}'

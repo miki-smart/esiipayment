@@ -1,0 +1,1 @@
+{"failure":{"failure_code":"InvalidRequest","retry_class":"DoNotRetry"},"idempotency_key":"ARIFPAY-COLLECT-INVALID-0001","next_action":null,"operation":"collect","state":{},"status":"Failed"}

@@ -1,0 +1,32 @@
+{
+  "$comment": "The transport-timeout classification vector referenced by Invariant I4 (spec/02-invariants.md#i4) and Invariant I10 (spec/02-invariants.md#i10). Every provider manifest must include an errors[] entry with match.transport == \"timeout\" (spec/03-manifest-dsl.md#errors), and every runtime must produce exactly this outcome when a call times out or the connection is reset before a response is received. esiipayment validate rejects any manifest whose transport-timeout entry maps to anything other than the failure_code/retry_class pair below, and rejects any manifest missing such an entry entirely.",
+  "cases": [
+    {
+      "description": "connection timed out before any response was received",
+      "transport_event": "timeout",
+      "required_failure_code": "ProviderTimeout",
+      "required_retry_class": "ResolveFirst",
+      "required_payment_status": "Processing",
+      "required_next_action": "Poll",
+      "forbidden_payment_status": "Failed",
+      "why": "The provider may have received and fully processed the request; the adapter simply never learned the outcome. Reporting Failed here would tell callers it is safe to retry, and a retry against a request the provider already completed creates a second real payment. See Invariant I4."
+    },
+    {
+      "description": "connection reset by peer before any response was received",
+      "transport_event": "connection_reset",
+      "required_failure_code": "ProviderTimeout",
+      "required_retry_class": "ResolveFirst",
+      "required_payment_status": "Processing",
+      "required_next_action": "Poll",
+      "forbidden_payment_status": "Failed",
+      "why": "Indistinguishable, from the caller's perspective, from a timeout: the request may have been received before the reset. Same classification and same reasoning as the timeout case above."
+    },
+    {
+      "description": "an unmapped provider-reported failure (no errors[] entry matches the response body)",
+      "transport_event": null,
+      "required_failure_code": "Unknown",
+      "required_retry_class": "ResolveFirst",
+      "why": "An unrecognized provider failure is an unconfirmed outcome from this system's point of view, not a confirmed safe-to-retry failure. The raw provider value must still be preserved in flow state for diagnosis. See spec/01-domain-model.md#failurecode."
+    }
+  ]
+}

@@ -1,0 +1,55 @@
+name: Spec RFC
+description: Propose a change to a closed enum, the expression language, or the manifest schema.
+title: "[RFC] "
+labels: ["rfc", "spec"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        See [GOVERNANCE.md](../../GOVERNANCE.md#rfc-process) for the full
+        process this issue kicks off. This template is specifically for
+        changes that touch a **closed enum** (PaymentStatus, NextAction,
+        FailureCode, RetryClass, CredentialShape, Operation), the
+        **expression language**, or the **manifest schema's validation
+        behaviour**. If your change doesn't touch any of those, it's
+        probably an ordinary PR instead — see CONTRIBUTING.md.
+  - type: dropdown
+    id: area
+    attributes:
+      label: What does this RFC touch?
+      multiple: true
+      options:
+        - A closed enum (PaymentStatus / NextAction / FailureCode / RetryClass / CredentialShape / Operation)
+        - The expression language (extraction / interpolation / conditions / transforms)
+        - The manifest schema's validation behaviour
+        - Something else that seems RFC-worthy
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: What can't the current spec express?
+      description: The concrete problem, not yet the solution.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Concrete motivating example
+      description: A real (or realistic) provider manifest/scenario that needs this.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed change
+      description: Be as specific as you can — the exact enum member, transform signature, or schema change proposed.
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact on existing runtimes and manifests
+      description: Is this additive (existing manifests keep validating) or breaking? What would every esiipayment-<language> runtime need to change?
+    validations:
+      required: true

@@ -1,0 +1,33 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+
+provider: arifpay
+tier: community
+description: >-
+  Ethiopian payment gateway offering a hosted checkout session with
+  configurable settlement beneficiaries, supporting local bank and mobile
+  money methods.
+
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    Confidence in this manifest is LOWER than providers/chapa's. It is a
+    best-effort reconstruction from general, likely outdated recollection
+    of ArifPay's public gateway, not from a current, licensed read of its
+    documentation, and not from any employer's integration code (see the
+    clean-room note in CONTRIBUTING.md). The endpoint paths, the entire
+    request/response body shape (including whether "error"/"status" are
+    even the right field names), and the amount limits in manifest.yaml
+    are marked inline as UNVERIFIED guesses. Most importantly:
+    webhook.verification.scheme is set to "none" not because ArifPay is
+    known to lack signature verification, but because there is no
+    confirmed recollection of what scheme it uses; this is an honest gap,
+    not a verified fact, and must be resolved before this manifest is
+    used for anything beyond reviewing the shape of the approach.
+
+maintainers: []
+
+links:
+  website: https://arifpay.org
+  docs: https://developer.arifpay.org

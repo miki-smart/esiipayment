@@ -1,0 +1,75 @@
+name: conformance-matrix
+
+# Fans out to every language SDK repo on a {sdk} x {provider} matrix so a
+# manifest change that breaks a runtime fails on the manifest PR itself,
+# not later in some other repo — see spec/06-conformance.md.
+#
+# This repo only controls the dispatch side: each entry in `sdks` below
+# must have a workflow listening for a repository_dispatch event of type
+# `esiipayment-conformance-check`, whose payload is
+# {"provider": "<name>", "sha": "<this repo's commit>"}. That workflow is
+# expected to:
+#   1. update its esiipayment-spec submodule to the given sha,
+#   2. run its own runtime's conformance suite against providers/<provider>
+#      (validate the manifest, replay every cassette, assert golden output
+#      per spec/06-conformance.md and spec/07-runtime-requirements.md),
+#   3. report a commit status (or check run) back on this repo's sha,
+#      named e.g. "conformance/<sdk>/<provider>", so branch protection on
+#      this repo can require it.
+#
+# NOTE: as of writing, esiipayment-dotnet/esiipayment-python/esiipayment-node/
+# esiipayment-go/esiipayment-php do not yet exist as real repositories with that
+# receiving workflow implemented — this file defines the contract this
+# repo commits to on the dispatch side, ready for each SDK repo to
+# implement the matching receiver once it exists. Until then, dispatches
+# below will fail with "repository not found" for any sdk repo that
+# hasn't been created yet; that failure should not block merges on this
+# repo until at least one real SDK repo implements the receiver (adjust
+# branch protection accordingly).
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "providers/**"
+      - "schema/**"
+      - "spec/**"
+
+jobs:
+  changed-providers:
+    runs-on: ubuntu-latest
+    outputs:
+      providers: ${{ steps.diff.outputs.providers }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - id: diff
+        run: |
+          CHANGED=$(git diff --name-only HEAD~1 HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_template$' || true)
+          JSON=$(printf '%s\n' "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "providers=$JSON" >> "$GITHUB_OUTPUT"
+
+  dispatch:
+    needs: changed-providers
+    if: needs.changed-providers.outputs.providers != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk:
+          - esiipayment-dotnet
+          - esiipayment-python
+          - esiipayment-node
+          - esiipayment-go
+          - esiipayment-php
+        provider: ${{ fromJson(needs.changed-providers.outputs.providers) }}
+    steps:
+      - name: dispatch conformance check to ${{ matrix.sdk }}
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.CONFORMANCE_DISPATCH_TOKEN }}
+          repository: esiipayment/${{ matrix.sdk }}
+          event-type: esiipayment-conformance-check
+          client-payload: |-
+            {"provider": "${{ matrix.provider }}", "sha": "${{ github.sha }}"}

@@ -1,0 +1,84 @@
+{
+  "$comment": "Extraction vectors for the JSONPath subset in spec/04-expression-language.md#extraction--a-jsonpath-subset. Every runtime's extraction implementation must match every case here exactly, including the missing-path cases: `missing: true` means the runtime's result for this path must be the explicit missing-value the runtime uses internally to mean 'did not resolve': never null coerced to a value, never an empty string, never a thrown error for extraction itself (a step that requires the value to resolve fails at the point it's used, not at extraction).",
+  "document": {
+    "status": "success",
+    "data": {
+      "checkout_url": "https://pay.example.et/abc123",
+      "customer": {
+        "phone": "0912345678",
+        "note": null
+      },
+      "items": [
+        { "status": "pending", "amount": 500 },
+        { "status": "success", "amount": 1500 }
+      ]
+    }
+  },
+  "cases": [
+    {
+      "description": "top-level field",
+      "path": "$.status",
+      "expected": "success"
+    },
+    {
+      "description": "nested field, two levels",
+      "path": "$.data.checkout_url",
+      "expected": "https://pay.example.et/abc123"
+    },
+    {
+      "description": "nested field, three levels",
+      "path": "$.data.customer.phone",
+      "expected": "0912345678"
+    },
+    {
+      "description": "array index access, object element",
+      "path": "$.data.items[0].status",
+      "expected": "pending"
+    },
+    {
+      "description": "array index access, numeric field",
+      "path": "$.data.items[1].amount",
+      "expected": 1500
+    },
+    {
+      "description": "wildcard projection over array of objects, string field",
+      "path": "$.data.items[*].status",
+      "expected": ["pending", "success"]
+    },
+    {
+      "description": "wildcard projection over array of objects, numeric field",
+      "path": "$.data.items[*].amount",
+      "expected": [500, 1500]
+    },
+    {
+      "description": "missing top-level field",
+      "path": "$.reference",
+      "missing": true
+    },
+    {
+      "description": "missing nested field",
+      "path": "$.data.customer.email",
+      "missing": true
+    },
+    {
+      "description": "array index out of range",
+      "path": "$.data.items[5]",
+      "missing": true
+    },
+    {
+      "description": "path continues through a null intermediate value",
+      "path": "$.data.customer.note.value",
+      "missing": true
+    },
+    {
+      "description": "path continues through a non-existent intermediate object",
+      "path": "$.data.absent.field",
+      "missing": true
+    },
+    {
+      "description": "wildcard over a non-existent array yields missing, not an empty array",
+      "path": "$.data.absent_list[*].status",
+      "missing": true
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction of an inbound notifyUrl callback; see the
+# PROVISIONAL banner in ../manifest.yaml. No signature to verify here
+# since webhook.verification.scheme is "none"; see the note in
+# manifest.yaml explaining that this is an honest unresolved gap, not a
+# confirmed fact about ArifPay.
+name: webhook.succeeded
+operation: webhook
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "ARIFPAY-WEBHOOK-SUCCEEDED-0001"
+inbound_webhook:
+  headers:
+    content-type: application/json
+  body: '{"sessionId":"sess_9f8a7b6c","status":"SUCCESS"}'
+interactions: []

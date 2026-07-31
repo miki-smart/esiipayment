@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.esiipayment.et/schema/cassette.v1.schema.json",
+  "title": "ESIIPayment Cassette",
+  "description": "Records HTTP interactions plus the deterministic inputs needed to replay a flow and reproduce byte-identical golden output. See spec/06-conformance.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "operation", "seed", "interactions"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*\\.[a-z][a-z0-9_]*$",
+      "description": "Cassette identifier of the form <operation>.<scenario>, e.g. \"collect.success\". Must have a matching expected/<name>.json in the same provider directory."
+    },
+    "operation": {
+      "type": "string",
+      "enum": ["collect", "sync", "payout", "cancel", "refund", "webhook"],
+      "description": "The Operation this cassette exercises. Determines which flows entry point is run during replay."
+    },
+    "seed": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["clock", "uuid", "idempotency_key"],
+      "properties": {
+        "clock": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+          "description": "Fixed timestamp injected as the runtime's clock for the duration of replay, ISO-8601 UTC, second precision. See spec/06-conformance.md canonical timestamp rules."
+        },
+        "uuid": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+          },
+          "description": "Fixed sequence of UUIDs injected in order wherever the flow would otherwise generate one. A flow requiring more UUIDs than are listed here is a cassette authoring error."
+        },
+        "idempotency_key": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Fixed idempotency key for this replay, available at ${idempotency_key}."
+        }
+      }
+    },
+    "interactions": {
+      "type": "array",
+      "minItems": 0,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request"],
+        "properties": {
+          "request": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["method", "path"],
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+              },
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Expected request path, after interpolation. A runtime must assert its outbound request matches this before feeding back the recorded response."
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              },
+              "body": {
+                "type": "string",
+                "description": "Expected raw request body, exactly as the runtime would send it over the wire."
+              }
+            }
+          },
+          "response": {
+            "type": "object",
+            "description": "Omitted only when the enclosing cassette has transport_failure: true, meaning no response was ever received for this request. esiipayment validate enforces that every interaction in a non-transport-failure cassette has a response, and that a transport_failure cassette's interactions have none.",
+            "additionalProperties": false,
+            "required": ["status", "body"],
+            "properties": {
+              "status": {
+                "type": "integer",
+                "minimum": 100,
+                "maximum": 599,
+                "description": "HTTP status code to feed back to the flow. Use a transport-level absence of a response (omit this interaction, or a dedicated timeout cassette) to exercise Invariant I4, never a synthetic status code standing in for a timeout."
+              },
+              "headers": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              },
+              "body": {
+                "type": "string",
+                "description": "Raw response body, exactly as the real provider would send it over the wire, fed to the flow's extraction step."
+              }
+            }
+          }
+        }
+      },
+      "description": "Ordered HTTP request/response pairs. A transport-timeout cassette (see errors[].match.transport == \"timeout\" in the manifest) declares this as an empty array plus a top-level `transport_failure: true` marker rather than a recorded response (see the `transport_failure` property below)."
+    },
+    "transport_failure": {
+      "type": "boolean",
+      "const": true,
+      "description": "Present and true only on a cassette simulating a transport-level failure (timeout, connection reset) rather than a completed HTTP exchange. When present, interactions describes only the outbound request(s) attempted; no response is recorded because none was received. Required for the mandatory transport-timeout cassette every provider must carry."
+    },
+    "intent": {
+      "type": "object",
+      "description": "The integrator-supplied operation input the flow is run with, e.g. amount, currency, method for collect/payout, an amount for refund. Available at ${intent.*}. Keys mirror the operation's own input shape, not DSL vocabulary, so this object is intentionally not closed by additionalProperties: false (same rationale as call.body in the manifest schema). Required for every operation except webhook, where the inbound event plays this role instead. May be an empty object for an operation whose flow does not reference ${intent.*} at all (e.g. a sync keyed only on ${idempotency_key})."
+    },
+    "environment": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Name of the manifest's environments entry (spec/03-manifest-dsl.md#environments) this replay resolves call.path and ctx.base_url against, e.g. \"sandbox\". Required for every operation except webhook, which makes no outbound call of its own."
+    },
+    "state": {
+      "type": "object",
+      "description": "Pre-existing flow state this replay starts from, as if persisted by an earlier operation under the same idempotency key (Invariant I6, spec/02-invariants.md#i6), needed whenever this cassette's operation reads ${state.*} that only a prior operation's collect would have written, e.g. a sync keyed on a provider-assigned session ID rather than the original idempotency key. Omit, or leave empty, for a cassette whose flow starts from empty state (the ordinary case for a fresh collect)."
+    },
+    "credentials": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Fixture values for the credentials namespace, keyed by the manifest's auth.fields names, e.g. the HMAC secret a webhook cassette's signature was actually computed with. These are test fixtures committed to a public repository, never real secrets (Invariant I9, spec/02-invariants.md#i9): a manifest with auth.shape: none omits this entirely; every other manifest's cassettes need enough of a fixture value here to make signature computation and any other ${credentials.*} interpolation reproducible during replay."
+    },
+    "ctx": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Fixed values for the runtime-supplied ctx namespace beyond base_url (which comes from the environment above), e.g. ctx.webhook_url, ctx.return_url, wherever a manifest's flows interpolate them. Freeform for the same reason intent is: these keys are deployment vocabulary, not DSL vocabulary. Omit, or leave empty, for a cassette whose flow never reads ${ctx.*} beyond path resolution."
+    },
+    "inputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "value"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "value": { "type": "string" }
+        }
+      },
+      "description": "Ordered values fed to the flow at each step reached via triggers: [input], in the order those steps are reached (e.g. an OTP digit string). Available at ${input.<name>} when that step runs. Omit entirely for a cassette whose flow never reaches an input-triggered step."
+    },
+    "inbound_webhook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["headers", "body"],
+      "properties": {
+        "headers": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Inbound request headers, including whatever signature header the manifest's webhook.verification.signature_header names."
+        },
+        "body": {
+          "type": "string",
+          "description": "Raw inbound webhook request body, exactly as received, before parsing. This is what signature verification runs over and what populates the event namespace once verified."
+        }
+      },
+      "description": "The inbound callback this cassette replays. Required when, and only meaningful when, operation is \"webhook\": a webhook is provider-initiated, so it has no integrator-supplied intent to replay instead."
+    }
+  },
+  "if": {
+    "properties": { "operation": { "const": "webhook" } }
+  },
+  "then": {
+    "required": ["inbound_webhook"]
+  },
+  "else": {
+    "required": ["intent", "environment"]
+  }
+}

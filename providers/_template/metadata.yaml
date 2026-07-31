@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+#
+# Copy to providers/<your-provider>/metadata.yaml and fill in every TODO.
+# This file drives the generated provider catalog and capability matrix
+# (see docs/): it's about the provider and this integration's provenance,
+# not about the technical DSL (that's manifest.yaml).
+
+provider: TODO_provider_slug
+
+# community: validates, cassettes present, golden output matches (the bar
+#            every first PR clears).
+# certified: adds a live sandbox run and a named maintainer.
+# official:  core-team maintained, provider acknowledged.
+# See GOVERNANCE.md for the full tier criteria. Start at "community";
+# there is no reason a first PR should claim more than this.
+tier: community
+
+description: >-
+  TODO: one or two sentences describing this provider for the generated
+  catalog (what it is, what market/channels it covers).
+
+# Required, honestly, on every non-mock provider. Do not present a guess
+# as a confirmed fact here; see docs/add-a-provider.md.
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    TODO: state plainly which parts of this manifest are unverified
+    (endpoint paths, field names, and the webhook signature scheme are the
+    usual candidates) and where your knowledge of this provider's API
+    came from (e.g. "integrated at $employer in 2025; written from public
+    docs and memory, not from employer source code; see the clean-room
+    note in CONTRIBUTING.md").
+
+# Required once tier is certified or official; recommended from the start
+# so reviewers know who to ask.
+maintainers:
+  - name: TODO_your_name
+    github: TODO_your_github_handle
+
+links:
+  website: https://TODO-provider-website.example
+  docs: https://TODO-provider-docs.example

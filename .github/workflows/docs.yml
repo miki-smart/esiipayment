@@ -1,0 +1,98 @@
+name: docs
+
+# Generates the provider catalog + capability matrix (from every
+# metadata.yaml/manifest.yaml, via `esiipayment catalog`) and a schema
+# reference (from the JSON Schemas' own property descriptions) into
+# docs/generated/. These are generated, never hand-written — see
+# docs/add-a-provider.md and spec/03-manifest-dsl.md's note on schema
+# descriptions "doing triple duty" as the generated reference's prose.
+#
+# On a PR: regenerate and fail if the committed docs/generated/ output
+# would change, so a manifest/schema change can't silently leave the
+# generated docs stale.
+# On push to main: regenerate and commit the result directly.
+
+on:
+  pull_request:
+    paths:
+      - "providers/**"
+      - "schema/**"
+      - "tools/validator/**"
+  push:
+    branches: [main]
+    paths:
+      - "providers/**"
+      - "schema/**"
+      - "tools/validator/**"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/validator/go.mod
+
+      - name: build esiipayment
+        working-directory: tools/validator
+        run: |
+          go mod tidy
+          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+
+      - name: generate provider catalog
+        run: |
+          mkdir -p docs/generated
+          esiipayment catalog . > docs/generated/catalog.md
+
+      - name: generate schema reference
+        run: |
+          mkdir -p docs/generated
+          {
+            echo "<!-- GENERATED from schema/*.json property descriptions — do not hand-edit. -->"
+            echo "<!-- Regenerate via this workflow, or the script below, locally. -->"
+            echo
+            echo "# Schema Reference"
+            for f in schema/*.schema.json; do
+              echo
+              echo "## $(basename "$f")"
+              echo
+              title=$(jq -r '.title // empty' "$f")
+              desc=$(jq -r '.description // empty' "$f")
+              [ -n "$title" ] && echo "**$title**"
+              [ -n "$desc" ] && echo "$desc"
+              echo
+              echo "| Property | Type | Description |"
+              echo "|---|---|---|"
+              jq -r '
+                .properties // {} | to_entries[] |
+                "| `" + .key + "` | " +
+                (.value.type // (.value["$ref"] // "object") | tostring) + " | " +
+                ((.value.description // "") | gsub("\n"; " ")) + " |"
+              ' "$f"
+            done
+          } > docs/generated/schema-reference.md
+
+      - name: check for drift (PRs only)
+        if: github.event_name == 'pull_request'
+        run: |
+          git diff --exit-code -- docs/generated/ || {
+            echo
+            echo "docs/generated/ is stale. Run this workflow's generation steps locally and commit the result."
+            exit 1
+          }
+
+      - name: commit regenerated docs (push to main only)
+        if: github.event_name == 'push'
+        run: |
+          if ! git diff --quiet -- docs/generated/; then
+            git config user.name "esiipayment-bot"
+            git config user.email "bot@users.noreply.github.com"
+            git add docs/generated/
+            git commit -m "docs: regenerate provider catalog and schema reference"
+            git push
+          else
+            echo "no drift, nothing to commit"
+          fi

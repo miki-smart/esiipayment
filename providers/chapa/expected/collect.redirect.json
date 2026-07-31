@@ -1,0 +1,2 @@
+
+{"failure":null,"idempotency_key":"CHAPA-COLLECT-REDIRECT-0001","next_action":"RedirectToUrl","operation":"collect","state":{"checkout_url":"https://checkout.chapa.co/checkout/payment/abcd1234"},"status":"RequiresAction"}

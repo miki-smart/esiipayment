@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"MOCK-COLLECT-OTP-0001","next_action":"SubmitOtp","operation":"collect","state":{"scenario":"otp"},"status":"RequiresAction"}

@@ -1,0 +1,178 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+#
+# ============================================================================
+# ESIIPayment provider manifest skeleton.
+#
+# Copy this directory to providers/<your-provider-slug>/, delete this
+# banner comment, and fill in every TODO. Read spec/03-manifest-dsl.md
+# first; this file is a guide, not a substitute for it.
+#
+# You do not need to write code in any programming language to add a
+# provider. You need: this file, a metadata.yaml (copy from
+# providers/mock/metadata.yaml and see docs/add-a-provider.md), and
+# recorded cassettes for at least a success, a provider-reported failure,
+# an auth failure, and a transport timeout (providers/mock/cassettes/ shows
+# the pattern for every operation).
+#
+# Before opening a PR: run `esiipayment validate providers/<your-provider>` and
+# `esiipayment replay providers/<your-provider> --assert-golden` (see
+# tools/validator). Both must pass.
+# ============================================================================
+
+# Unique slug: lowercase, must match this directory's name.
+provider: TODO_provider_slug
+
+# The manifest DSL version this manifest targets. Leave at "1.0" unless you
+# have a specific reason to target something else. See spec/08-versioning.md.
+spec_version: "1.0"
+
+# Human-readable name shown in the generated catalog and credential forms.
+display_name: "TODO Human-Readable Provider Name"
+
+# ISO-3166-1 alpha-2 country code of this provider's primary market.
+country: ET
+
+# ISO-4217 currency codes this provider can move. Every code here must
+# have an entry in vectors/money/exponents.json; check before adding a
+# currency that isn't already there (it's a spec RFC to add a new one).
+currencies: [ETB]
+
+# Named base configurations. flows.*.steps.*.call.path is resolved
+# against the active environment's base_url; never hardcode a host
+# inline in a call step.
+environments:
+  sandbox:
+    base_url: https://TODO-sandbox-host.example
+  production:
+    base_url: https://TODO-production-host.example
+
+# Exactly one CredentialShape (spec/01-domain-model.md#credentialshape):
+# none, api_key, key_pair, triple_key, oauth2_client_credentials, hmac,
+# mutual_tls. Pick the closest match to what the real provider issues;
+# never invent a new shape, even if the real scheme is a minor variant.
+auth:
+  shape: TODO_credential_shape
+  fields:
+    # One entry per credential value the runtime must collect from the
+    # integrator. Name and describe only; never write a real secret
+    # value here (Invariant I9). Delete this example and list your
+    # provider's actual fields.
+    - name: TODO_field_name
+      description: >-
+        TODO: what this value is, and where an integrator obtains it
+        (e.g. "Secret key issued in the provider's merchant dashboard;
+        sent as the Bearer token on every request.").
+
+# Limits, not just booleans: a boolean says a method exists, a limit
+# says whether an integrator's actual use case works.
+capabilities:
+  operations: [collect]  # TODO: add sync, payout, cancel, refund, webhook as you implement them
+  next_actions: [TODO_NextAction]  # TODO: must exactly equal the union of next_action values your flows below actually emit
+  currencies:
+    ETB:
+      min_amount: TODO_min_amount_in_minor_units
+      max_amount: TODO_max_amount_in_minor_units
+
+# Maps each operation in capabilities.operations to its flows entry point.
+# Every key here needs a matching entry under `flows`, and every operation
+# needs cassette coverage.
+operations:
+  collect:
+    entry_flow: collect
+  # sync:
+  #   entry_flow: sync
+  # webhook:
+  #   entry_flow: webhook
+
+# Each flow is a small named state machine; see
+# spec/03-manifest-dsl.md#flows for the full model (call / triggers /
+# status_map / emit / goto) and spec/04-expression-language.md for the
+# ${...} interpolation syntax used inside call/emit fields.
+flows:
+  collect:
+    steps:
+      # TODO: rename/restructure these steps to match your provider's
+      # actual API shape. This skeleton shows the common
+      # initialize-then-branch pattern from a hosted-checkout-style
+      # provider; a provider with a different flow (e.g. synchronous
+      # success/failure, or an STK-push-then-webhook pattern) will look
+      # different. providers/mock/manifest.yaml is a complete worked
+      # example covering every PaymentStatus/NextAction combination.
+      initialize:
+        call:
+          method: POST
+          path: /TODO/collect/endpoint
+          body:
+            # TODO: replace with your provider's actual field names.
+            # Field NAMES on the left are the provider's own vocabulary
+            # (not validated against a fixed list; see
+            # spec/03-manifest-dsl.md's additionalProperties note).
+            amount: ${amount_major(intent.amount)}
+            currency: ${intent.currency}
+            reference: ${idempotency_key}
+            callback_url: ${ctx.webhook_url}
+        triggers: [return]
+        status_map:
+          # `path` is the extraction path (spec/04-expression-language.md)
+          # read from this call's response to decide which step is next.
+          path: $.TODO.path.to.the.providers.status.field
+          values:
+            # TODO: keys on the left are the provider's own status
+            # vocabulary as it appears at `path` above; values on the
+            # right are step names defined below.
+            TODO_provider_success_value: succeeded
+            TODO_provider_pending_value: awaiting_action
+        emit:
+          state:
+            # TODO: persist anything a later step needs to read, e.g. a
+            # provider transaction reference used by `sync`.
+            provider_reference: ${extract.data.TODO_field}
+
+      succeeded:
+        emit:
+          status: Succeeded
+
+      awaiting_action:
+        emit:
+          status: RequiresAction
+          # TODO: pick the NextAction that matches what the END USER must
+          # do; see the mapping table in
+          # spec/01-domain-model.md#nextaction. Never pick one based on
+          # what the provider's API calls it internally.
+          next_action: TODO_NextAction
+          state:
+            # TODO: e.g. a checkout URL, a USSD code, a QR payload,
+            # whatever the integrator's UI needs to act on.
+            TODO_state_key: ${extract.data.TODO_field}
+
+# Maps provider-specific error signals to the closed FailureCode set.
+# Every manifest must include the transport: timeout entry below exactly
+# as shown; see spec/03-manifest-dsl.md#how-errors-interacts-with-status_map
+# for how this interacts with the status_map above (errors is checked
+# first, and a match bypasses the step's own emit entirely).
+errors:
+  # TODO: add one entry per distinguishable provider failure reason your
+  # provider reports, each with the FailureCode/RetryClass pair from
+  # vectors/errors/failure-retry-map.json (esiipayment validate rejects any
+  # retry_class that disagrees with that table for a given failure_code).
+  - match:
+      path: $.TODO.provider_error_field
+      equals: TODO_provider_error_value
+    failure_code: TODO_FailureCode
+    retry_class: TODO_RetryClass  # must match the fixed table for the FailureCode above
+
+  # Required, verbatim, in every manifest:
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst
+
+# Required if capabilities.operations includes "webhook". See
+# spec/05-webhooks.md for the full verification model; verification
+# always runs over the raw, unparsed body with a constant-time compare.
+# webhook:
+#   verification:
+#     scheme: hmac_sha256_hex   # or hmac_sha256_base64, or none (rare; justify in metadata.yaml)
+#     signature_header: TODO-Signature-Header-Name
+#     secret: ${credentials.TODO_field_name}
+#   body_format: json

@@ -1,0 +1,21 @@
+# See GOVERNANCE.md for how these roles are defined and how membership in
+# each team is granted. The split below is deliberate: the core team owns
+# the contract (spec/, schema/, vectors/) but is not a bottleneck on
+# ordinary provider work (providers/), which adapter reviewers can approve
+# on their own. Anything touching a closed enum, the expression language,
+# or the manifest schema still requires the RFC process in GOVERNANCE.md
+# regardless of who technically has approval rights to merge it.
+
+/spec/                      @esiipayment/maintainers
+/schema/                    @esiipayment/maintainers
+/vectors/                   @esiipayment/maintainers
+/tools/                     @esiipayment/maintainers
+/.github/                   @esiipayment/maintainers
+/providers/                 @esiipayment/adapter-reviewers
+/providers/_template/       @esiipayment/maintainers
+/providers/mock/            @esiipayment/maintainers
+/docs/                      @esiipayment/maintainers
+/GOVERNANCE.md              @esiipayment/maintainers
+/CONTRIBUTING.md            @esiipayment/maintainers
+/CODE_OF_CONDUCT.md         @esiipayment/maintainers
+/SECURITY.md                @esiipayment/maintainers

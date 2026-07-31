@@ -1,0 +1,41 @@
+name: no-code
+
+# The governing rule of this repository: no application code, in any
+# language, under providers/, vectors/, or schema/ — see
+# spec/00-overview.md. This check is deliberately a plain shell script,
+# not a run of `esiipayment lint` (which enforces the same rule) — a rule
+# this load-bearing gets an independent, dependency-free gate that does
+# not rely on the validator tool building correctly.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  no-code-in-data-dirs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: scan for forbidden code file extensions
+        run: |
+          set -euo pipefail
+          PATTERN='\.(cs|py|ts|js|go|php|rb|java)$'
+          HITS=""
+          for dir in providers vectors schema; do
+            if [ -d "$dir" ]; then
+              FOUND=$(find "$dir" -type f | grep -E "$PATTERN" || true)
+              if [ -n "$FOUND" ]; then
+                HITS="$HITS
+          $FOUND"
+              fi
+            fi
+          done
+          if [ -n "$HITS" ]; then
+            echo "Application code found under providers/, vectors/, or schema/:"
+            echo "$HITS"
+            echo
+            echo "This repository contains no application code outside tools/ — see spec/00-overview.md."
+            exit 1
+          fi
+          echo "No forbidden code files found."

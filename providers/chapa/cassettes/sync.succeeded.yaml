@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction, not recorded real Chapa sandbox traffic;
+# see the PROVISIONAL banner in ../manifest.yaml.
+name: sync.succeeded
+operation: sync
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "CHAPA-SYNC-SUCCEEDED-0001"
+environment: sandbox
+intent: {}
+interactions:
+  - request:
+      method: GET
+      path: /v1/transaction/verify/CHAPA-SYNC-SUCCEEDED-0001
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"message":"Payment details","status":"success","data":{"status":"success","tx_ref":"CHAPA-SYNC-SUCCEEDED-0001","amount":"150.00","currency":"ETB"}}'

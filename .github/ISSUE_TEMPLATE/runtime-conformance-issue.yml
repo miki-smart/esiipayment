@@ -1,0 +1,39 @@
+name: Runtime conformance issue
+description: A spec ambiguity, missing vector, or validator bug found while building a language runtime.
+title: ""
+labels: ["conformance", "runtime"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For "the spec doesn't define X precisely enough to implement it
+        identically across runtimes" — read
+        [docs/build-a-runtime.md](../../docs/build-a-runtime.md) first in
+        case it's already covered. If the fix requires changing a closed
+        enum, the expression language, or the manifest schema, this issue
+        may turn into an RFC per [GOVERNANCE.md](../../GOVERNANCE.md) —
+        that's fine, start here regardless.
+  - type: input
+    id: runtime
+    attributes:
+      label: Which runtime (if any) surfaced this?
+      placeholder: e.g. esiipayment-python, or "found while reading the spec"
+  - type: textarea
+    id: issue
+    attributes:
+      label: What's ambiguous, missing, or wrong?
+      description: Point at the specific spec/vectors/schema file and section.
+    validations:
+      required: true
+  - type: textarea
+    id: example
+    attributes:
+      label: Concrete example
+      description: A manifest snippet, cassette, or expression that two reasonable implementations could evaluate differently.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed resolution (optional)
+      description: A specific vector to add, a clarifying sentence, or a schema change.

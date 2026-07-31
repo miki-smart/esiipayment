@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative only: see ../manifest.yaml. Exercises the
+# `path: $.data.status, equals: FAILED` entry in manifest.yaml's errors
+# list (checked before status_map, which only maps a top-level "SUCCESS").
+name: collect.declined
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "SANTIMPAY-COLLECT-DECLINED-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/santimpay"
+  return_url: "https://merchant.example/return/santimpay"
+credentials:
+  api_key: "fixture-not-a-real-key"
+intent:
+  amount: 15000
+  currency: ETB
+  phone: "0912345678"
+interactions:
+  - request:
+      method: POST
+      path: /api/v1/gateway/initiate-payment
+      body: '{"amount":"150.00","currency":"ETB","phoneNumber":"251912345678","reference":"SANTIMPAY-COLLECT-DECLINED-0001","successRedirectUrl":"https://merchant.example/return/santimpay","failureRedirectUrl":"https://merchant.example/return/santimpay","notifyUrl":"https://merchant.example/webhooks/santimpay"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"status":"FAILED","data":{"status":"FAILED","reason":"insufficient_balance"}}'

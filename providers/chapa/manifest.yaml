@@ -1,0 +1,185 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+#
+# PROVISIONAL: see providers/chapa/metadata.yaml. This manifest is written
+# from general, possibly-outdated recollection of Chapa's public API, not
+# from current, verified documentation. Endpoint paths, exact field names,
+# and the webhook signature scheme are marked inline below where confidence
+# is lowest, and must be confirmed against https://developer.chapa.co
+# before this manifest is used against a real (even sandbox) Chapa account.
+# The cassettes in providers/chapa/cassettes/ are illustrative reconstructions
+# of plausible responses, not recorded real traffic.
+
+provider: chapa
+spec_version: "1.0"
+display_name: "Chapa"
+country: ET
+# Chapa's own docs (as last recalled) advertise ETB as the primary
+# settlement currency for local payment methods; card payments may support
+# additional currencies. Left at ETB only pending verification; adding
+# USD here without confirming it is actually accepted is worse than
+# omitting it.
+currencies: [ETB]
+
+environments:
+  # UNVERIFIED: recollection is that Chapa uses a single API host for both
+  # test and live traffic, distinguished by which secret key (test-prefixed
+  # vs live-prefixed; see auth.fields below) is sent, rather than separate
+  # sandbox/production hosts. If that is wrong, both entries below need
+  # distinct base_urls instead.
+  sandbox:
+    base_url: https://api.chapa.co
+  production:
+    base_url: https://api.chapa.co
+
+auth:
+  # UNVERIFIED shape: modeled as a single bearer secret key, which matches
+  # the hosted-checkout initialize/verify flow as recalled. Chapa may also
+  # expose a separate public key for other integration modes (e.g.
+  # client-side encryption for direct card/mobile-money charges); if so,
+  # this shape should become key_pair or triple_key instead. Confirm before
+  # relying on this.
+  shape: api_key
+  fields:
+    - name: secret_key
+      description: >-
+        Secret key from the Chapa merchant dashboard. Test keys are
+        prefixed CHASECK_TEST-, live keys CHASECK-. Sent as
+        "Authorization: Bearer <secret_key>" on every request. (Prefix
+        format as recalled; confirm against current dashboard.)
+
+capabilities:
+  operations: [collect, sync, webhook]
+  next_actions: [RedirectToUrl, Poll]
+  currencies:
+    ETB:
+      # UNVERIFIED limits: placeholders, not values read from Chapa
+      # documentation. Confirm actual min/max before certifying this
+      # manifest.
+      min_amount: 100
+      max_amount: 100000000
+
+operations:
+  collect:
+    entry_flow: collect
+  sync:
+    entry_flow: sync
+  webhook:
+    entry_flow: webhook
+
+flows:
+  # Hosted-checkout pattern: initialize returns a checkout_url the payer is
+  # redirected to; the actual outcome arrives later via sync (verify) or
+  # webhook.
+  collect:
+    steps:
+      initialize:
+        call:
+          method: POST
+          # UNVERIFIED path: recalled as /v1/transaction/initialize.
+          path: /v1/transaction/initialize
+          body:
+            amount: ${amount_major(intent.amount)}
+            currency: ${intent.currency}
+            # UNVERIFIED: Chapa's hosted checkout has historically required
+            # payer email/name fields on this call. Field names as
+            # recalled; confirm against current docs. A runtime's public
+            # collect() API would need to accept these as part of intent
+            # for this provider.
+            email: ${intent.email}
+            first_name: ${intent.first_name}
+            last_name: ${intent.last_name}
+            tx_ref: ${idempotency_key}
+            callback_url: ${ctx.webhook_url}
+            return_url: ${ctx.return_url}
+        triggers: [return]
+        status_map:
+          path: $.status
+          values:
+            success: awaiting_redirect
+        emit:
+          state:
+            checkout_url: ${extract.data.checkout_url}
+
+      awaiting_redirect:
+        emit:
+          status: RequiresAction
+          next_action: RedirectToUrl
+
+  sync:
+    steps:
+      query:
+        call:
+          method: GET
+          # UNVERIFIED path: recalled as /v1/transaction/verify/{tx_ref}.
+          path: /v1/transaction/verify/${idempotency_key}
+        triggers: [return]
+        status_map:
+          path: $.data.status
+          values:
+            success: succeeded
+            pending: still_processing
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      still_processing:
+        emit: { status: Processing, next_action: Poll }
+
+  webhook:
+    steps:
+      receive:
+        triggers: [webhook]
+        status_map:
+          path: $.status
+          values:
+            success: succeeded
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+
+errors:
+  # Initialize-time validation failure (missing/malformed field). Chapa is
+  # recalled to return a 200 with a top-level "status": "failed" and a
+  # message in this case, rather than a 4xx; UNVERIFIED.
+  - match:
+      path: $.status
+      equals: failed
+    failure_code: InvalidRequest
+    retry_class: DoNotRetry
+
+  # Verify-time outcome: the provider processed the payment and it did not
+  # succeed (declined, expired session, etc). UNVERIFIED whether Chapa
+  # distinguishes decline reasons at this endpoint; modeled here as a
+  # single generic decline.
+  - match:
+      path: $.data.status
+      equals: failed
+    failure_code: AuthorizationDeclined
+    retry_class: DoNotRetry
+
+  # Bad/expired secret key. UNVERIFIED whether Chapa returns a bare 401 or
+  # a 200 with a failure body for this case; modeled on HTTP status since
+  # that is the more common REST convention and is what most payment APIs
+  # use for authentication failures specifically.
+  - match:
+      http_status: 401
+    failure_code: AuthFailed
+    retry_class: DoNotRetry
+
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst
+
+webhook:
+  verification:
+    # UNVERIFIED scheme and header name. Recalled as an HMAC-SHA256 hex
+    # signature in a "Chapa-Signature" header computed over the raw
+    # webhook body using the secret key, but this is exactly the kind of
+    # detail that changes between provider doc revisions and must be
+    # confirmed, not assumed, before relying on it for real verification.
+    scheme: hmac_sha256_hex
+    signature_header: Chapa-Signature
+    secret: ${credentials.secret_key}
+  body_format: json

@@ -1,0 +1,61 @@
+{
+  "$comment": "Interpolation vectors per spec/04-expression-language.md#interpolation. `context` supplies every namespace a manifest step can read from. Each case's `template` is the exact ${...} string a manifest field would contain; `expected` is the exact resulting string after interpolation (and transform, where present). Every runtime must match every case byte-for-byte.",
+  "context": {
+    "credentials": {
+      "secret_key": "sk_test_abc123",
+      "public_key": "pk_test_xyz"
+    },
+    "ctx": {
+      "base_url": "https://api.chapa.co",
+      "webhook_url": "https://merchant.example/webhooks/chapa"
+    },
+    "intent": {
+      "amount": 10000,
+      "currency": "ETB",
+      "method": "telebirr",
+      "phone": "0912345678"
+    },
+    "state": {
+      "tx_ref": "INV-2291",
+      "checkout_url": "https://checkout.chapa.co/abc",
+      "created_at_epoch": 1768469400
+    },
+    "extract": {
+      "data": {
+        "checkout_url": "https://checkout.chapa.co/abc",
+        "status": "success"
+      }
+    },
+    "input": {
+      "otp": "482913"
+    },
+    "event": {
+      "tx_ref": "INV-2291",
+      "status": "success"
+    },
+    "idempotency_key": "INV-2291:0"
+  },
+  "cases": [
+    { "description": "credentials namespace", "template": "${credentials.secret_key}", "expected": "sk_test_abc123" },
+    { "description": "ctx namespace", "template": "${ctx.webhook_url}", "expected": "https://merchant.example/webhooks/chapa" },
+    { "description": "intent namespace", "template": "${intent.currency}", "expected": "ETB" },
+    { "description": "state namespace", "template": "${state.tx_ref}", "expected": "INV-2291" },
+    { "description": "extract namespace, nested path", "template": "${extract.data.checkout_url}", "expected": "https://checkout.chapa.co/abc" },
+    { "description": "input namespace", "template": "${input.otp}", "expected": "482913" },
+    { "description": "event namespace", "template": "${event.status}", "expected": "success" },
+    { "description": "idempotency_key namespace (no path, whole-value namespace)", "template": "${idempotency_key}", "expected": "INV-2291:0" },
+    { "description": "amount_major transform", "template": "${amount_major(intent.amount)}", "expected": "100.00" },
+    { "description": "msisdn_et transform, local 09-format input", "template": "${msisdn_et(intent.phone)}", "expected": "251912345678" },
+    { "description": "base64 transform", "template": "${base64(intent.currency)}", "expected": "RVRC" },
+    { "description": "hex transform", "template": "${hex(intent.currency)}", "expected": "455442" },
+    { "description": "sha256_hex transform", "template": "${sha256_hex(idempotency_key)}", "expected": "d5686733a4decccc4dd2975db4ac500fd6d7a258c416130b17a73c8c016b0b5d" },
+    { "description": "upper transform", "template": "${upper(intent.method)}", "expected": "TELEBIRR" },
+    { "description": "lower transform", "template": "${lower(state.tx_ref)}", "expected": "inv-2291" },
+    { "description": "iso8601 transform, from epoch seconds", "template": "${iso8601(state.created_at_epoch)}", "expected": "2026-01-15T09:30:00Z" }
+  ],
+  "additional_msisdn_et_cases": [
+    { "description": "already-canonical international form is unchanged", "input": "251912345678", "expected": "251912345678" },
+    { "description": "leading plus is stripped", "input": "+251912345678", "expected": "251912345678" },
+    { "description": "punctuation and spaces are stripped before normalization", "input": "091-234-5678", "expected": "251912345678" }
+  ]
+}

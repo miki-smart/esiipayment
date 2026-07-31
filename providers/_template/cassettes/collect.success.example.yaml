@@ -1,0 +1,34 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative only: this is NOT a cassette for the TODO-filled manifest.yaml
+# in this directory (that manifest doesn't validate until its TODOs are
+# resolved). It exists purely so you can see the shape of a cassette next
+# to the shape of the manifest step it exercises, using a fictional
+# "Example Pay" provider whose endpoint echoes back what it was sent.
+#
+# Once your own manifest.yaml is filled in, delete this file and record
+# cassettes against your provider's real (sandboxed) responses instead;
+# see docs/add-a-provider.md. providers/mock/cassettes/ has 20 real,
+# schema-valid, cross-checked examples if you want more to compare against.
+name: collect.success
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "EXAMPLE-COLLECT-SUCCESS-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/example-pay"
+intent:
+  amount: 15000
+  currency: ETB
+  method: telebirr
+interactions:
+  - request:
+      method: POST
+      path: /TODO/collect/endpoint
+      body: '{"amount":"150.00","currency":"ETB","reference":"EXAMPLE-COLLECT-SUCCESS-0001","callback_url":"https://merchant.example/webhooks/example-pay"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"data":{"status":"success","transaction_id":"EPX-9f8a7b6c"}}'

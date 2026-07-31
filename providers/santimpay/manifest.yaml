@@ -1,0 +1,162 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+#
+# PROVISIONAL: see providers/santimpay/metadata.yaml. Confidence in this
+# manifest is the LOWEST of the three real providers in this repository.
+# Unlike providers/chapa and providers/arifpay, this was not reconstructed
+# from a specific, if fuzzy, memory of SantimPay's actual API shape; it
+# is a plausible skeleton built on the general pattern most Ethiopian
+# hosted-checkout PSPs share (initialize → redirect → verify/webhook),
+# filled in with the LEAST speculative defaults available. Essentially
+# every field below (endpoint paths, field names, the auth mechanism
+# itself, and the webhook scheme) is an unconfirmed placeholder. Do not
+# treat anything here as a description of SantimPay's real API. This
+# manifest exists to hold the provider's place in the catalog and to give
+# a future contributor with real SantimPay access a starting structure to
+# correct, not to describe real behaviour. The cassettes in
+# providers/santimpay/cassettes/ are illustrative only.
+
+provider: santimpay
+spec_version: "1.0"
+display_name: "SantimPay"
+country: ET
+currencies: [ETB]
+
+environments:
+  # UNVERIFIED, lowest confidence of the three real providers: host names
+  # are placeholders, not recalled or confirmed values.
+  sandbox:
+    base_url: https://api.santimpay.com
+  production:
+    base_url: https://api.santimpay.com
+
+auth:
+  # UNVERIFIED and LOW CONFIDENCE. Some Ethiopian payment gateways
+  # authenticate requests using an asymmetric key pair (the merchant signs
+  # each request, or exchanges a private key for a short-lived token,
+  # rather than sending a single static secret). If SantimPay actually
+  # works that way, `api_key` below is the wrong shape, and, notably,
+  # this manifest DSL's closed transform set (spec/03-manifest-dsl.md#field-transforms)
+  # has no signing transform, so expressing per-request asymmetric
+  # signing might require an RFC to add one rather than being modelable
+  # today. `api_key` is used here as the more conservative assumption
+  # specifically because asserting a specific unconfirmed signing scheme
+  # would be a worse error than flagging the uncertainty plainly.
+  shape: api_key
+  fields:
+    - name: api_key
+      description: >-
+        UNVERIFIED: assumed to be a single merchant API key sent as a
+        bearer token, analogous to providers/chapa's secret_key. Confirm
+        against current SantimPay documentation; the real mechanism may
+        differ substantially (see the shape note above).
+
+capabilities:
+  operations: [collect, sync, webhook]
+  next_actions: [RedirectToUrl, Poll]
+  currencies:
+    ETB:
+      # UNVERIFIED placeholders.
+      min_amount: 100
+      max_amount: 50000000
+
+operations:
+  collect:
+    entry_flow: collect
+  sync:
+    entry_flow: sync
+  webhook:
+    entry_flow: webhook
+
+flows:
+  collect:
+    steps:
+      initialize:
+        call:
+          method: POST
+          # UNVERIFIED path: a plausible-shaped placeholder, not a
+          # recalled or confirmed endpoint.
+          path: /api/v1/gateway/initiate-payment
+          body:
+            amount: ${amount_major(intent.amount)}
+            currency: ${intent.currency}
+            phoneNumber: ${msisdn_et(intent.phone)}
+            reference: ${idempotency_key}
+            successRedirectUrl: ${ctx.return_url}
+            failureRedirectUrl: ${ctx.return_url}
+            notifyUrl: ${ctx.webhook_url}
+        triggers: [return]
+        status_map:
+          # UNVERIFIED path and enum values.
+          path: $.status
+          values:
+            SUCCESS: awaiting_redirect
+        emit:
+          state:
+            checkout_url: ${extract.data.paymentUrl}
+
+      awaiting_redirect:
+        emit:
+          status: RequiresAction
+          next_action: RedirectToUrl
+
+  sync:
+    steps:
+      query:
+        call:
+          method: GET
+          # UNVERIFIED path.
+          path: /api/v1/gateway/transaction-status/${idempotency_key}
+        triggers: [return]
+        status_map:
+          # UNVERIFIED path and enum values.
+          path: $.data.status
+          values:
+            COMPLETED: succeeded
+            PENDING: still_processing
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      still_processing:
+        emit: { status: Processing, next_action: Poll }
+
+  webhook:
+    steps:
+      receive:
+        triggers: [webhook]
+        status_map:
+          # UNVERIFIED path and payload shape.
+          path: $.status
+          values:
+            COMPLETED: succeeded
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+
+errors:
+  - match:
+      path: $.data.status
+      equals: FAILED
+    failure_code: AuthorizationDeclined
+    retry_class: DoNotRetry
+
+  - match:
+      http_status: 401
+    failure_code: AuthFailed
+    retry_class: DoNotRetry
+
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst
+
+webhook:
+  verification:
+    # UNVERIFIED, lowest confidence: no specific recollection of
+    # SantimPay's webhook signature scheme at all, hence "none": an
+    # honest gap, not a claim that SantimPay lacks signature verification.
+    # See the equivalent note in providers/arifpay/manifest.yaml; this
+    # MUST be resolved before this manifest moves past "provisional".
+    scheme: none
+  body_format: json

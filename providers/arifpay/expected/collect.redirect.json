@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"ARIFPAY-COLLECT-REDIRECT-0001","next_action":"RedirectToUrl","operation":"collect","state":{"payment_url":"https://gateway.arifpay.net/pay/sess_9f8a7b6c","session_id":"sess_9f8a7b6c"},"status":"RequiresAction"}

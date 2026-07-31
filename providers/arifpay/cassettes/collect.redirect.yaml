@@ -1,0 +1,36 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction, not recorded real ArifPay traffic; see the
+# PROVISIONAL banner in ../manifest.yaml. Every field name below is a
+# best-effort guess; treat this as a shape demonstration, not a source of
+# truth about ArifPay's real API.
+name: collect.redirect
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "ARIFPAY-COLLECT-REDIRECT-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/arifpay"
+  return_url: "https://merchant.example/return/arifpay"
+  cancel_url: "https://merchant.example/cancel/arifpay"
+  settlement_account: "1000234567890"
+credentials:
+  api_key: "fixture-not-a-real-key"
+intent:
+  amount: 15000
+  currency: ETB
+  phone: "0912345678"
+  email: "customer@example.com"
+  expires_at: "2026-01-15T10:30:00Z"
+interactions:
+  - request:
+      method: POST
+      path: /api/checkout/session
+      headers: { x-arifpay-key: "fixture-not-a-real-key" }
+      body: '{"phone":"251912345678","email":"customer@example.com","expireDate":"2026-01-15T10:30:00Z","cancelUrl":"https://merchant.example/cancel/arifpay","successUrl":"https://merchant.example/return/arifpay","errorUrl":"https://merchant.example/return/arifpay","notifyUrl":"https://merchant.example/webhooks/arifpay","beneficiaries":{"accountNumber":"1000234567890","amount":"150.00"}}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"error":false,"msg":"Session created successfully","data":{"sessionId":"sess_9f8a7b6c","paymentUrl":"https://gateway.arifpay.net/pay/sess_9f8a7b6c"}}'

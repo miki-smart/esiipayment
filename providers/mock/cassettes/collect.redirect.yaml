@@ -1,0 +1,21 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+name: collect.redirect
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "MOCK-COLLECT-REDIRECT-0001"
+environment: sandbox
+intent:
+  amount: 10000
+  currency: ETB
+  method: redirect
+interactions:
+  - request:
+      method: POST
+      path: /v1/collect
+      body: '{"scenario":"redirect","amount":"100.00","currency":"ETB","reference":"MOCK-COLLECT-REDIRECT-0001"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"data":{"scenario":"redirect","checkout_url":"https://mock.esiipayment.et/checkout/MOCK-COLLECT-REDIRECT-0001"}}'

@@ -1,0 +1,71 @@
+{
+  "$comment": "The idempotency-conflict vector referenced by Invariant I7 (spec/02-invariants.md#i7). Same key + same payload must replay the original result without re-executing side effects; same key + a different payload is a DuplicateRequest error, never a silent overwrite.",
+  "original_request": {
+    "idempotency_key": "INV-2291:0",
+    "operation": "collect",
+    "amount": { "minor_units": 10000, "currency": "ETB" },
+    "method": "telebirr"
+  },
+  "cases": [
+    {
+      "description": "identical replay: same key, byte-identical payload",
+      "request": {
+        "idempotency_key": "INV-2291:0",
+        "operation": "collect",
+        "amount": { "minor_units": 10000, "currency": "ETB" },
+        "method": "telebirr"
+      },
+      "expected_behavior": "replay",
+      "expected_result": "the original recorded result is returned verbatim; no new provider call is made",
+      "expected_failure_code": null
+    },
+    {
+      "description": "conflicting replay: same key, different amount",
+      "request": {
+        "idempotency_key": "INV-2291:0",
+        "operation": "collect",
+        "amount": { "minor_units": 20000, "currency": "ETB" },
+        "method": "telebirr"
+      },
+      "expected_behavior": "reject",
+      "expected_result": "no provider call is made; no existing record is modified",
+      "expected_failure_code": "DuplicateRequest"
+    },
+    {
+      "description": "conflicting replay: same key, different currency",
+      "request": {
+        "idempotency_key": "INV-2291:0",
+        "operation": "collect",
+        "amount": { "minor_units": 10000, "currency": "USD" },
+        "method": "telebirr"
+      },
+      "expected_behavior": "reject",
+      "expected_result": "no provider call is made; no existing record is modified",
+      "expected_failure_code": "DuplicateRequest"
+    },
+    {
+      "description": "conflicting replay: same key, different method",
+      "request": {
+        "idempotency_key": "INV-2291:0",
+        "operation": "collect",
+        "amount": { "minor_units": 10000, "currency": "ETB" },
+        "method": "cbe_birr"
+      },
+      "expected_behavior": "reject",
+      "expected_result": "no provider call is made; no existing record is modified",
+      "expected_failure_code": "DuplicateRequest"
+    },
+    {
+      "description": "conflicting replay: same key, different operation entirely",
+      "request": {
+        "idempotency_key": "INV-2291:0",
+        "operation": "refund",
+        "amount": { "minor_units": 10000, "currency": "ETB" },
+        "method": "telebirr"
+      },
+      "expected_behavior": "reject",
+      "expected_result": "no provider call is made; no existing record is modified",
+      "expected_failure_code": "DuplicateRequest"
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"MOCK-COLLECT-CANCELED-0001","next_action":null,"operation":"collect","state":{"scenario":"canceled"},"status":"Canceled"}

@@ -1,0 +1,71 @@
+name: validate
+
+# Runs the reference validator (tools/validator) against every changed
+# provider on a PR, plus a repo-wide lint. See tools/validator/README.md
+# and spec/06-conformance.md for what these checks cover.
+
+on:
+  pull_request:
+    paths:
+      - "providers/**"
+      - "schema/**"
+      - "vectors/**"
+      - "tools/validator/**"
+  push:
+    branches: [main]
+
+jobs:
+  changed-providers:
+    runs-on: ubuntu-latest
+    outputs:
+      providers: ${{ steps.diff.outputs.providers }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        run: |
+          BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_template$' || true)
+          JSON=$(printf '%s\n' "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
+          echo "providers=$JSON" >> "$GITHUB_OUTPUT"
+
+  validate:
+    needs: changed-providers
+    if: needs.changed-providers.outputs.providers != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: ${{ fromJson(needs.changed-providers.outputs.providers) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/validator/go.mod
+      - name: build esiipayment
+        working-directory: tools/validator
+        run: |
+          go mod tidy
+          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+      - name: esiipayment validate
+        run: esiipayment validate providers/${{ matrix.provider }}
+      - name: esiipayment replay --assert-golden
+        run: esiipayment replay providers/${{ matrix.provider }} --assert-golden
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/validator/go.mod
+      - name: build esiipayment
+        working-directory: tools/validator
+        run: |
+          go mod tidy
+          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+      - name: esiipayment lint
+        run: esiipayment lint .

@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative only: see the heavy PROVISIONAL/low-confidence banner in
+# ../manifest.yaml. This is a shape demonstration, not a description of
+# SantimPay's real API.
+name: collect.redirect
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "SANTIMPAY-COLLECT-REDIRECT-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/santimpay"
+  return_url: "https://merchant.example/return/santimpay"
+credentials:
+  api_key: "fixture-not-a-real-key"
+intent:
+  amount: 15000
+  currency: ETB
+  phone: "0912345678"
+interactions:
+  - request:
+      method: POST
+      path: /api/v1/gateway/initiate-payment
+      body: '{"amount":"150.00","currency":"ETB","phoneNumber":"251912345678","reference":"SANTIMPAY-COLLECT-REDIRECT-0001","successRedirectUrl":"https://merchant.example/return/santimpay","failureRedirectUrl":"https://merchant.example/return/santimpay","notifyUrl":"https://merchant.example/webhooks/santimpay"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"status":"SUCCESS","data":{"paymentUrl":"https://pay.santimpay.com/checkout/9f8a7b6c"}}'

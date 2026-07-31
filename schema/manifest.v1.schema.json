@@ -1,0 +1,462 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.esiipayment.et/schema/manifest.v1.schema.json",
+  "title": "ESIIPayment Provider Manifest",
+  "description": "Describes one payment provider's behaviour entirely as data. See spec/03-manifest-dsl.md for the normative prose this schema encodes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "provider",
+    "spec_version",
+    "display_name",
+    "country",
+    "currencies",
+    "environments",
+    "auth",
+    "capabilities",
+    "operations",
+    "flows",
+    "errors"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Unique slug identifying this provider. Must match the directory name providers/<provider>/."
+    },
+    "spec_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "The manifest DSL version this manifest targets, e.g. \"1.0\". See spec/08-versioning.md. A runtime must refuse to execute a manifest whose spec_version it does not implement."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable provider name shown in the generated catalog and in credential-input UI."
+    },
+    "country": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "description": "ISO-3166-1 alpha-2 country code of the provider's primary market, e.g. \"ET\"."
+    },
+    "currencies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]{3}$"
+      },
+      "description": "ISO-4217 currency codes this provider can move. Every code listed must have an entry in vectors/money/exponents.json."
+    },
+    "environments": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["base_url"],
+          "properties": {
+            "base_url": {
+              "type": "string",
+              "format": "uri",
+              "description": "Base URL that flows.*.steps.*.call.path is resolved against for this environment."
+            }
+          }
+        }
+      },
+      "description": "Named base configurations (typically sandbox and production) that flow steps resolve against. Adapter authors never hardcode a host inside a call step."
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "fields"],
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "key_pair",
+            "triple_key",
+            "oauth2_client_credentials",
+            "hmac",
+            "mutual_tls"
+          ],
+          "description": "The closed CredentialShape this provider uses. See spec/01-domain-model.md#credentialshape. Pick the closest shape; never invent a new one."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$",
+                "description": "Field identifier, referenced at runtime as ${credentials.<name>}."
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Explains what this credential value is and where an integrator obtains it. Used to generate a credential-input form."
+              }
+            }
+          },
+          "description": "Named credential fields the runtime must collect from the integrator. Must be empty when shape is \"none\". Per Invariant I9, no literal secret value is ever written here."
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operations", "next_actions", "currencies"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["collect", "sync", "payout", "cancel", "refund", "webhook"]
+          },
+          "description": "The Operation values this provider supports. Must equal the key set of the top-level operations section."
+        },
+        "next_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "None",
+              "RedirectToUrl",
+              "AwaitDevicePush",
+              "SubmitOtp",
+              "DisplayQr",
+              "ShowTransferDetails",
+              "DialUssd",
+              "Poll",
+              "Capture"
+            ]
+          },
+          "description": "Every NextAction variant this provider's flows can emit. esiipayment validate checks this set is exactly equal to (not merely a superset of) the next_action values flows actually emit."
+        },
+        "currencies": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Z]{3}$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min_amount", "max_amount"],
+              "properties": {
+                "min_amount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Smallest amount this provider accepts for this currency, in minor units."
+                },
+                "max_amount": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Largest amount this provider accepts for this currency, in minor units."
+                }
+              }
+            }
+          },
+          "description": "Per-currency amount limits. A boolean says a method exists; these limits say whether a given use case actually works."
+        }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "collect": { "$ref": "#/$defs/operationEntry" },
+        "sync": { "$ref": "#/$defs/operationEntry" },
+        "payout": { "$ref": "#/$defs/operationEntry" },
+        "cancel": { "$ref": "#/$defs/operationEntry" },
+        "refund": { "$ref": "#/$defs/operationEntry" },
+        "webhook": { "$ref": "#/$defs/operationEntry" }
+      },
+      "description": "Maps each supported Operation to its flows entry point. Every key here must also appear in capabilities.operations, and must have a matching entry under flows."
+    },
+    "flows": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[a-z][a-z0-9_]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["steps"],
+          "properties": {
+            "steps": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": false,
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*$": { "$ref": "#/$defs/step" }
+              }
+            }
+          }
+        }
+      },
+      "description": "Named flow state machines. Every operations.*.entry_flow must name a key here. See spec/03-manifest-dsl.md#flows."
+    },
+    "errors": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/errorMapping" },
+      "description": "Maps provider-specific error signals to the closed FailureCode/RetryClass sets. Must include one entry with match.transport == \"timeout\" mapped to ProviderTimeout / ResolveFirst."
+    },
+    "webhook": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["verification", "body_format"],
+      "properties": {
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["scheme"],
+          "properties": {
+            "scheme": {
+              "type": "string",
+              "enum": ["hmac_sha256_hex", "hmac_sha256_base64", "none"],
+              "description": "See spec/05-webhooks.md. Verification is always computed over the raw request body with a constant-time comparison."
+            },
+            "signature_header": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Name of the HTTP header carrying the provider's signature. Required unless scheme is \"none\"."
+            },
+            "secret": {
+              "type": "string",
+              "pattern": "^\\$\\{credentials\\.[a-z][a-z0-9_]*\\}$",
+              "description": "Interpolation referencing the credential field used as the HMAC secret. Required unless scheme is \"none\"."
+            }
+          },
+          "if": {
+            "properties": { "scheme": { "const": "none" } }
+          },
+          "then": {},
+          "else": {
+            "required": ["signature_header", "secret"]
+          }
+        },
+        "body_format": {
+          "type": "string",
+          "enum": ["json"],
+          "description": "How the (already-verified) raw body is parsed for extraction."
+        }
+      },
+      "description": "Declares how to verify and interpret an inbound webhook callback. Required when capabilities.operations includes \"webhook\"."
+    }
+  },
+  "$defs": {
+    "operationEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["entry_flow"],
+      "properties": {
+        "entry_flow": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Name of the flows entry this operation runs."
+        }
+      }
+    },
+    "namedTransform": {
+      "type": "string",
+      "description": "A literal value, or an interpolation ${namespace.path} / ${transform(namespace.path)} per spec/04-expression-language.md."
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "call": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "path"],
+          "properties": {
+            "method": {
+              "type": "string",
+              "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"]
+            },
+            "path": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Request path, resolved against the active environment's base_url. May contain interpolation, e.g. ${state.tx_ref}."
+            },
+            "headers": {
+              "type": "object",
+              "description": "Provider-specific request headers. Keys are the provider's own header names, not part of the DSL vocabulary. See spec/03-manifest-dsl.md.",
+              "additionalProperties": { "type": "string" }
+            },
+            "body": {
+              "type": "object",
+              "description": "Provider-specific request body. Keys are the provider's own field names, not part of the DSL vocabulary. See spec/03-manifest-dsl.md."
+            }
+          },
+          "description": "Issues one outbound HTTP request. Never expresses retry or backoff. See Invariant I5."
+        },
+        "triggers": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["webhook", "poll", "return", "input"]
+          },
+          "description": "What causes this step to run."
+        },
+        "status_map": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "values"],
+          "properties": {
+            "path": {
+              "type": "string",
+              "pattern": "^\\$(\\.[a-zA-Z_][a-zA-Z0-9_]*(\\[(\\*|[0-9]+)\\])?)+$",
+              "description": "Extraction path (spec/04-expression-language.md), evaluated against this step's response or webhook body. Its extracted value is looked up in `values` to choose the next step."
+            },
+            "values": {
+              "type": "object",
+              "minProperties": 1,
+              "additionalProperties": {
+                "type": "string",
+                "pattern": "^[a-z][a-z0-9_]*$"
+              },
+              "description": "Maps an extracted value to the name of the next step. Keys are the provider's own status vocabulary, not part of the DSL vocabulary. See spec/03-manifest-dsl.md."
+            }
+          },
+          "description": "Branches to a different next step depending on a value extracted from this step's response or webhook body."
+        },
+        "emit": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "RequiresAction",
+                "Processing",
+                "Succeeded",
+                "Failed",
+                "Canceled",
+                "Expired"
+              ],
+              "description": "The PaymentStatus this step produces."
+            },
+            "next_action": {
+              "type": "string",
+              "enum": [
+                "None",
+                "RedirectToUrl",
+                "AwaitDevicePush",
+                "SubmitOtp",
+                "DisplayQr",
+                "ShowTransferDetails",
+                "DialUssd",
+                "Poll",
+                "Capture"
+              ],
+              "description": "The NextAction this step produces."
+            },
+            "state": {
+              "type": "object",
+              "description": "Values written to flow state, keyed by adapter-author-chosen names and readable later as ${state.<key>}. Values are interpolations, typically extraction from the current response.",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        },
+        "goto": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Name of the next step for an unconditional transition. Every goto and status_map target must name a real step in the same flow."
+        }
+      },
+      "description": "One named step in a flow's state machine. See spec/03-manifest-dsl.md#flows."
+    },
+    "errorMapping": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match", "failure_code", "retry_class"],
+      "properties": {
+        "match": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["path", "equals"],
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "pattern": "^\\$(\\.[a-zA-Z_][a-zA-Z0-9_]*(\\[(\\*|[0-9]+)\\])?)+$",
+                  "description": "Extraction path per spec/04-expression-language.md, evaluated against the response or webhook body."
+                },
+                "equals": {
+                  "description": "Literal value the extracted path must equal for this mapping to apply."
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["transport"],
+              "properties": {
+                "transport": {
+                  "const": "timeout",
+                  "description": "Reserved match kind for the transport-timeout case. Every manifest must include exactly one such entry, mapped to ProviderTimeout / ResolveFirst."
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["http_status"],
+              "properties": {
+                "http_status": {
+                  "type": "integer",
+                  "minimum": 100,
+                  "maximum": 599,
+                  "description": "Reserved match kind for a failure signalled purely by HTTP status code, independent of body content, e.g. a 401 on every auth failure regardless of what the body says, or a 429 rate-limit response with no useful body. Checked only when no body-path match below applies to the same response; see spec/03-manifest-dsl.md#how-errors-interacts-with-status_map."
+                }
+              }
+            }
+          ]
+        },
+        "failure_code": {
+          "type": "string",
+          "enum": [
+            "InsufficientFunds",
+            "InvalidRecipient",
+            "RecipientLimitExceeded",
+            "SenderLimitExceeded",
+            "DuplicateRequest",
+            "AuthFailed",
+            "AuthorizationDeclined",
+            "ProviderUnavailable",
+            "ProviderTimeout",
+            "InvalidRequest",
+            "UnsupportedOperation",
+            "Expired",
+            "CanceledByUser",
+            "Unknown"
+          ]
+        },
+        "retry_class": {
+          "type": "string",
+          "enum": ["SafeToRetry", "DoNotRetry", "ResolveFirst"],
+          "description": "Must agree with the fixed FailureCode -> RetryClass table in spec/01-domain-model.md#retryclass and vectors/errors/failure-retry-map.json. esiipayment validate rejects disagreement."
+        }
+      }
+    }
+  }
+}

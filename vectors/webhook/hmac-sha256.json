@@ -1,0 +1,44 @@
+{
+  "$comment": "Real, precomputed HMAC-SHA256 vectors per spec/05-webhooks.md and Invariant I11 (spec/02-invariants.md#i11). raw_body is the exact byte sequence the signature was computed over: a runtime must compute against this exact string, not a re-serialized/re-parsed form of it. Every runtime must reproduce signature_hex and signature_base64 exactly from raw_body and secret, and must reject the tampered-body and missing-header cases below using a constant-time comparison.",
+  "secret": "whsec_test_5f8a3b2c9d1e4f6a",
+  "raw_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"100.00\",\"currency\":\"ETB\"}",
+  "valid": {
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "signature": "1dbf340e95462dcd89205a804462455b50c7e1db394b7f1bdf08316c9175af71",
+    "expected_result": "verified"
+  },
+  "valid_base64": {
+    "scheme": "hmac_sha256_base64",
+    "signature_header": "X-Webhook-Signature",
+    "signature": "Hb80DpVGLc2JIFqARGJFW1DH4ds5S38b3wgxbJF1r3E=",
+    "expected_result": "verified"
+  },
+  "tampered_body": {
+    "description": "Body was altered after signing (amount changed from 100.00 to 999.00); the signature header still carries the signature computed over the original raw_body above.",
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"999.00\",\"currency\":\"ETB\"}",
+    "signature": "1dbf340e95462dcd89205a804462455b50c7e1db394b7f1bdf08316c9175af71",
+    "expected_result": "rejected",
+    "why": "Recomputing HMAC-SHA256 over received_body with the same secret yields 1efabea4b8371fa359a0b67de24077f78d571d739003eecbb7360e9cc430a7e8, which does not match the received signature."
+  },
+  "missing_header": {
+    "description": "The signature header is absent entirely from the inbound request.",
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"100.00\",\"currency\":\"ETB\"}",
+    "signature": null,
+    "expected_result": "rejected",
+    "why": "A missing signature header is a rejection, never an implicit pass-through. See spec/05-webhooks.md."
+  },
+  "reordered_but_logically_equal_body": {
+    "description": "A body with the same fields in a different order and different whitespace, illustrating why verification must run against the exact raw bytes rather than a re-serialized form.",
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "received_body": "{\"currency\": \"ETB\", \"amount\": \"100.00\", \"status\": \"success\", \"tx_ref\": \"INV-2291\", \"event\": \"charge.success\"}",
+    "signature": "1dbf340e95462dcd89205a804462455b50c7e1db394b7f1bdf08316c9175af71",
+    "expected_result": "rejected",
+    "why": "The signature was computed over raw_body's exact bytes. Even though this body is logically equivalent field-for-field, its bytes differ (key order and whitespace), so recomputing HMAC-SHA256 over it does not reproduce the received signature. A runtime that reformats the body before verifying would wrongly reject a legitimate differently-formatted request in one direction, and wrongly accept a forged one in the other, which is exactly why verification must run over the untouched raw body."
+  }
+}
