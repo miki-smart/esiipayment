@@ -71,28 +71,12 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Tutorial: docs/tutorial.md
-  - Guides:
-      - Use a Provider: docs/use-a-provider.md
-      - Localization: docs/localization.md
-  - Examples:
-      - The Canonical Scenario: docs/examples/scenario.md
-      - The Reference Integrator: docs/examples/integrator/reference-integrator.md
-  - Tutorials:
-      - Build a Runtime:
-          - Overview: docs/tutorials/build-a-runtime/index.md
-          - 1. Setup: docs/tutorials/build-a-runtime/01-setup.md
-          - 2. Primitives: docs/tutorials/build-a-runtime/02-primitives.md
-          - 3. The Expression Evaluator: docs/tutorials/build-a-runtime/03-expression-evaluator.md
-          - 4. Canonical JSON: docs/tutorials/build-a-runtime/04-canonical-json.md
-          - 5. Errors and Webhooks: docs/tutorials/build-a-runtime/05-errors-and-webhooks.md
-          - 6. The Manifest Loader: docs/tutorials/build-a-runtime/06-manifest-loader.md
-          - 7. The Interpreter: docs/tutorials/build-a-runtime/07-interpreter.md
-          - 8. Replay Against Mock First: docs/tutorials/build-a-runtime/08-replay-against-mock.md
-          - 9. The Engine: docs/tutorials/build-a-runtime/09-the-engine.md
-          - 10. Conformance Replay: docs/tutorials/build-a-runtime/10-conformance-replay.md
-          - 11. Publishing Honestly: docs/tutorials/build-a-runtime/11-publishing.md
-          - Conformance Checklist: docs/tutorials/build-a-runtime/checklist.md
+  - Overview: spec/00-overview.md
+  - Quick Start Walkthrough: docs/tutorial.md
+  - By Role:
+      - Shared Examples:
+          - The Canonical Scenario: docs/examples/scenario.md
+          - The Reference Integrator: docs/examples/integrator/reference-integrator.md
       - Add a Provider:
           - Overview: docs/tutorials/add-a-provider/index.md
           - 1. What a Manifest Is: docs/tutorials/add-a-provider/01-what-a-manifest-is.md
@@ -114,9 +98,25 @@ nav:
           - 4. Change Classes: docs/tutorials/modify-the-spec/04-change-classes.md
           - 5. The Obligation You Create: docs/tutorials/modify-the-spec/05-the-obligation-you-create.md
           - 6. Versioning and Deprecation: docs/tutorials/modify-the-spec/06-versioning-and-deprecation.md
-      - Use a Provider (Template): docs/tutorials/use-a-provider/TEMPLATE.md
+      - Use a Provider:
+          - Guide: docs/use-a-provider.md
+          - SDK Tutorial Template: docs/tutorials/use-a-provider/TEMPLATE.md
+          - Localization: docs/localization.md
+  - SDK & Runtime Development:
+      - Overview: docs/tutorials/build-a-runtime/index.md
+      - 1. Setup: docs/tutorials/build-a-runtime/01-setup.md
+      - 2. Primitives: docs/tutorials/build-a-runtime/02-primitives.md
+      - 3. The Expression Evaluator: docs/tutorials/build-a-runtime/03-expression-evaluator.md
+      - 4. Canonical JSON: docs/tutorials/build-a-runtime/04-canonical-json.md
+      - 5. Errors and Webhooks: docs/tutorials/build-a-runtime/05-errors-and-webhooks.md
+      - 6. The Manifest Loader: docs/tutorials/build-a-runtime/06-manifest-loader.md
+      - 7. The Interpreter: docs/tutorials/build-a-runtime/07-interpreter.md
+      - 8. Replay Against Mock First: docs/tutorials/build-a-runtime/08-replay-against-mock.md
+      - 9. The Engine: docs/tutorials/build-a-runtime/09-the-engine.md
+      - 10. Conformance Replay: docs/tutorials/build-a-runtime/10-conformance-replay.md
+      - 11. Publishing Honestly: docs/tutorials/build-a-runtime/11-publishing.md
+      - Conformance Checklist: docs/tutorials/build-a-runtime/checklist.md
   - Specification:
-      - Overview: spec/00-overview.md
       - Domain Model: spec/01-domain-model.md
       - Invariants: spec/02-invariants.md
       - Manifest DSL: spec/03-manifest-dsl.md
