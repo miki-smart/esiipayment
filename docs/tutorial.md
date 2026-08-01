@@ -13,53 +13,55 @@ Part 2 uses C# as the illustrative language. Nothing about the approach
 is C#-specific: swap in your own language's YAML and JSON libraries and
 the same steps apply.
 
-## Part 1: build an adapter ("ExampleWallet")
+## Part 1: build an adapter ("Telebirr")
 
 No programming language needed for this part. A text editor and the
 `esiipayment` CLI (built once, from `tools/validator`; see that
 directory's README) are all you need.
 
-We'll build a manifest for a fictional provider, "ExampleWallet," that
-doesn't exist. That's deliberate: it keeps the exercise honest (you're
-not tempted to guess at a real provider's actual behaviour) and isolates
-the DSL mechanics from any real-world uncertainty. Delete
-`providers/examplewallet/` when you're done; it's a learning exercise, not
-a contribution.
+We'll build a manifest loosely modeled on Telebirr, Ethio Telecom's
+mobile money service, because a familiar real-world name keeps the
+exercise grounded. Every endpoint path, field name, and status value
+below is still invented for teaching purposes: this is deliberately
+**not** a verified description of Telebirr's actual API (compare
+`providers/santimpay/metadata.yaml` for what an honest "unverified" note
+looks like on a real contribution). Delete `providers/telebirr/` when
+you're done; it's a learning exercise, not a contribution.
 
 ### Step 1: copy the template
 
 ```
-cp -r providers/_template providers/examplewallet
+cp -r providers/_template providers/telebirr
 ```
 
 ### Step 2: identity, environment, auth
 
-Replace the top of `providers/examplewallet/manifest.yaml`:
+Replace the top of `providers/telebirr/manifest.yaml`:
 
 ```yaml
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
-provider: examplewallet
+provider: telebirr
 spec_version: "1.0"
-display_name: "ExampleWallet (tutorial provider, not real)"
+display_name: "Telebirr (tutorial illustration, simplified/unverified)"
 country: ET
 currencies: [ETB]
 
 environments:
   sandbox:
-    base_url: https://sandbox.examplewallet.test/api
+    base_url: https://sandbox.telebirr.test/api
   production:
-    base_url: https://api.examplewallet.test/api
+    base_url: https://api.telebirr.test/api
 
 auth:
   shape: api_key
   fields:
     - name: api_key
-      description: API key issued in the ExampleWallet merchant dashboard; sent as a bearer token.
+      description: API key issued in the Telebirr merchant dashboard; sent as a bearer token.
 ```
 
 ### Step 3: capabilities
 
-ExampleWallet's `collect` is synchronous most of the time, but can report
+Telebirr's `collect` is synchronous most of the time, but can report
 "pending" for a payer still confirming on their end. That gives us a
 realistic reason to need both a terminal outcome and `NextAction.Poll`:
 
@@ -147,26 +149,28 @@ Recall the precedence rule from
 That's why `initialize`'s `status_map` above only needs to handle
 `success`/`pending`: `declined` and a bad key never reach it.
 
-No webhook section: ExampleWallet doesn't have one, so we leave it out
-entirely (only required when `capabilities.operations` includes
-`"webhook"`).
+No webhook section: this tutorial version of Telebirr doesn't have one,
+so we leave it out entirely (only required when
+`capabilities.operations` includes `"webhook"`).
 
 ### Step 6: metadata.yaml
 
 ```yaml
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
-provider: examplewallet
+provider: telebirr
 tier: community
 description: >-
-  Tutorial-only fictional provider used to teach the manifest DSL
-  (docs/tutorial.md). Not a real payment provider.
+  Tutorial-only, simplified manifest used to teach the manifest DSL
+  (docs/tutorial.md), loosely modeled on Telebirr. Not a verified
+  description of Telebirr's real API.
 verification:
   status: provisional
   docs_verified_on: null
   verified_by: null
   notes: >-
-    Fictional provider invented for this tutorial; there is no real API to
-    verify against.
+    Invented for this tutorial to keep the exercise grounded in a
+    familiar name; every endpoint, field, and status value is
+    illustrative, not confirmed against Telebirr's actual API.
 maintainers: []
 links: {}
 ```
@@ -175,7 +179,7 @@ links: {}
 
 Four minimum, per [docs/add-a-provider.md](add-a-provider.md): success, a
 provider-reported failure, an auth failure, a transport timeout. Create
-`providers/examplewallet/cassettes/collect.success.yaml`:
+`providers/telebirr/cassettes/collect.success.yaml`:
 
 ```yaml
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
@@ -184,7 +188,7 @@ operation: collect
 seed:
   clock: "2026-01-15T09:30:00Z"
   uuid: []
-  idempotency_key: "EXAMPLEWALLET-COLLECT-SUCCESS-0001"
+  idempotency_key: "TELEBIRR-COLLECT-SUCCESS-0001"
 environment: sandbox
 credentials:
   api_key: "fixture-not-a-real-key"
@@ -196,18 +200,18 @@ interactions:
       method: POST
       path: /v1/pay
       headers: { Authorization: "Bearer fixture-not-a-real-key" }
-      body: '{"amount":"50.00","currency":"ETB","reference":"EXAMPLEWALLET-COLLECT-SUCCESS-0001"}'
+      body: '{"amount":"50.00","currency":"ETB","reference":"TELEBIRR-COLLECT-SUCCESS-0001"}'
     response:
       status: 200
       headers: { content-type: application/json }
       body: '{"status":"success"}'
 ```
 
-and `providers/examplewallet/expected/collect.success.json` (canonical:
+and `providers/telebirr/expected/collect.success.json` (canonical:
 sorted keys, no whitespace):
 
 ```json
-{"failure":null,"idempotency_key":"EXAMPLEWALLET-COLLECT-SUCCESS-0001","next_action":null,"operation":"collect","state":{},"status":"Succeeded"}
+{"failure":null,"idempotency_key":"TELEBIRR-COLLECT-SUCCESS-0001","next_action":null,"operation":"collect","state":{},"status":"Succeeded"}
 ```
 
 Repeat the pattern for the other three, changing only what needs to
@@ -228,8 +232,8 @@ change:
 ```
 cd tools/validator
 go build -o esiipayment ./cmd/esiipayment
-./esiipayment validate ../../providers/examplewallet
-./esiipayment replay ../../providers/examplewallet --assert-golden
+./esiipayment validate ../../providers/telebirr
+./esiipayment replay ../../providers/telebirr --assert-golden
 ```
 
 Both must pass before you'd consider this ready for review in a real
@@ -252,7 +256,7 @@ you'll run for a real provider).
 - Every cassette needs a byte-exact `expected/` golden file: this is the
   mechanism that keeps five language runtimes honest against each other.
 
-When you're done, `rm -rf providers/examplewallet`: it was a sandbox.
+When you're done, `rm -rf providers/telebirr`: it was a sandbox.
 
 ## Part 2: build a minimal SDK, in C#
 
@@ -420,7 +424,7 @@ you extend this; see the "where to go from here" list at the end.
 
 ```csharp
 var manifestYaml = """
-provider: examplewallet
+provider: telebirr
 flows:
   collect:
     steps:
@@ -438,7 +442,7 @@ var cassetteYaml = """
 name: collect.success
 operation: collect
 seed:
-  idempotency_key: "EXAMPLEWALLET-COLLECT-SUCCESS-0001"
+  idempotency_key: "TELEBIRR-COLLECT-SUCCESS-0001"
 interaction:
   response:
     status: 200
@@ -450,7 +454,7 @@ var cassette = deserializer.Deserialize<CassetteDoc>(cassetteYaml);
 var result = Interpreter.Run(manifest, cassette);
 
 Console.WriteLine(Canonical.ToJson(result));
-// {"failure":null,"idempotency_key":"EXAMPLEWALLET-COLLECT-SUCCESS-0001","next_action":null,"operation":"collect","status":"Succeeded"}
+// {"failure":null,"idempotency_key":"TELEBIRR-COLLECT-SUCCESS-0001","next_action":null,"operation":"collect","status":"Succeeded"}
 ```
 
 This exact code was written and run while preparing this tutorial;
