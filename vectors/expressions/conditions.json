@@ -3,7 +3,9 @@
   "document": {
     "status": "success",
     "amount": 1500,
+    "amount_as_string": "1500",
     "currency": "ETB",
+    "verified": true,
     "data": {
       "items": [{ "code": "pending" }, { "code": "success" }]
     }
@@ -22,6 +24,17 @@
     { "description": "in false case, literal list", "path": "$.currency", "operator": "in", "literal": ["USD", "EUR"], "result": false },
     { "description": "comparison against a value from a wildcard-projected array is not supported by this language; conditions read one scalar path, never a projection", "path": "$.data.items[0].code", "operator": "==", "literal": "pending", "result": true },
     { "description": "missing path never equals any literal, including the empty string", "path": "$.data.absent", "operator": "==", "literal": "", "result": false },
-    { "description": "missing path is never `in` any list, including one containing an empty string", "path": "$.data.absent", "operator": "in", "literal": ["", "success"], "result": false }
+    { "description": "missing path is never `in` any list, including one containing an empty string", "path": "$.data.absent", "operator": "in", "literal": ["", "success"], "result": false },
+    { "description": "< false case, equal values (symmetric with the > equal-values case above)", "path": "$.amount", "operator": "<", "literal": 1500, "result": false },
+    { "description": "!= on a missing path is true: a missing value never equals any literal, so it is unequal to all of them, including its complement of the == false-case for the empty string above", "path": "$.data.absent", "operator": "!=", "literal": "", "result": true },
+    { "description": "> on a missing path is false, not an error: comparison against an unresolved path is never true for any operator", "path": "$.data.absent", "operator": ">", "literal": 0, "result": false },
+    { "description": "< on a missing path is false for the same reason", "path": "$.data.absent", "operator": "<", "literal": 0, "result": false },
+    { "description": "== never coerces type: a numeric field is never equal to the same digits as a string literal", "path": "$.amount", "operator": "==", "literal": "1500", "result": false },
+    { "description": "== never coerces type in the other direction either: a string field is never equal to the same digits as a numeric literal", "path": "$.amount_as_string", "operator": "==", "literal": 1500, "result": false },
+    { "description": "== on a boolean field against a boolean literal", "path": "$.verified", "operator": "==", "literal": true, "result": true },
+    { "description": "== never coerces a boolean field against a string literal, even \"true\"", "path": "$.verified", "operator": "==", "literal": "true", "result": false },
+    { "description": "in with a single-element list", "path": "$.currency", "operator": "in", "literal": ["ETB"], "result": true },
+    { "description": "in does not coerce type: a numeric field is never `in` a list of the same digits as strings", "path": "$.amount", "operator": "in", "literal": ["1500", "2000"], "result": false },
+    { "description": "in with an empty literal list is always false, for any field", "path": "$.currency", "operator": "in", "literal": [], "result": false }
   ]
 }

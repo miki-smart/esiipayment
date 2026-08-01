@@ -1,1 +1,1 @@
-{"failure":null,"idempotency_key":"MOCK-COLLECT-DEVICE-PUSH-0001","next_action":"AwaitDevicePush","operation":"collect","state":{"scenario":"device_push"},"status":"RequiresAction"}
+{"failure":null,"idempotency_key":"MOCK-COLLECT-DEVICE-PUSH-0001","next_action":{"display_ref":"device ending in 4567","type":"AwaitDevicePush"},"operation":"collect","state":{"scenario":"device_push"},"status":"RequiresAction"}

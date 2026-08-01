@@ -9,11 +9,14 @@ seed:
   uuid: []
   idempotency_key: "CHAPA-SYNC-SUCCEEDED-0001"
 environment: sandbox
+credentials:
+  secret_key: "CHASECK_TEST-fixture-not-a-real-key"
 intent: {}
 interactions:
   - request:
       method: GET
       path: /v1/transaction/verify/CHAPA-SYNC-SUCCEEDED-0001
+      headers: { Authorization: "Bearer CHASECK_TEST-fixture-not-a-real-key" }
     response:
       status: 200
       headers: { content-type: application/json }

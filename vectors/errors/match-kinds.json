@@ -1,0 +1,62 @@
+{
+  "$comment": "Vectors for the three errors[].match kinds (spec/03-manifest-dsl.md#errors) and how they interact with a step's own status_map (spec/03-manifest-dsl.md#how-errors-interacts-with-status_map): path/equals against the response body, http_status against the raw HTTP status regardless of body content, and transport against an absent response entirely. errors is always evaluated before status_map; a match short-circuits the step's own emit/state entirely.",
+  "manifest_errors_under_test": [
+    { "match": { "path": "$.data.status", "equals": "insufficient_balance" }, "failure_code": "InsufficientFunds", "retry_class": "DoNotRetry" },
+    { "match": { "http_status": 401 }, "failure_code": "AuthFailed", "retry_class": "DoNotRetry" },
+    { "match": { "http_status": 429 }, "failure_code": "ProviderUnavailable", "retry_class": "SafeToRetry" },
+    { "match": { "transport": "timeout" }, "failure_code": "ProviderTimeout", "retry_class": "ResolveFirst" }
+  ],
+  "cases": [
+    {
+      "description": "http_status match fires purely on status code, independent of what the body says",
+      "http_status": 401,
+      "body": { "message": "some provider-specific text that mentions nothing about auth" },
+      "expected_match_index": 1,
+      "expected_failure_code": "AuthFailed"
+    },
+    {
+      "description": "a second http_status entry matches its own distinct code",
+      "http_status": 429,
+      "body": {},
+      "expected_match_index": 2,
+      "expected_failure_code": "ProviderUnavailable"
+    },
+    {
+      "description": "path/equals match fires on body content with a 200 status, the common case for a provider that reports failure in-band rather than via HTTP status",
+      "http_status": 200,
+      "body": { "data": { "status": "insufficient_balance" } },
+      "expected_match_index": 0,
+      "expected_failure_code": "InsufficientFunds"
+    },
+    {
+      "description": "http_status 200 with a body that matches no path/equals entry and isn't one of the declared http_status codes falls through to this step's own status_map, not to any errors entry",
+      "http_status": 200,
+      "body": { "data": { "status": "success" } },
+      "expected_match_index": null,
+      "expected_failure_code": null,
+      "note": "Falls through to status_map: success -> whatever step that value is mapped to."
+    },
+    {
+      "description": "transport match fires when no response was received at all, independent of any http_status or body (there is neither)",
+      "transport_event": "timeout",
+      "expected_match_index": 3,
+      "expected_failure_code": "ProviderTimeout"
+    },
+    {
+      "description": "a matched errors entry bypasses this step's own status_map entirely, even when the body would also satisfy status_map.values for some key",
+      "http_status": 401,
+      "body": { "data": { "status": "success" } },
+      "expected_match_index": 1,
+      "expected_failure_code": "AuthFailed",
+      "why": "errors is checked before status_map (spec/03-manifest-dsl.md#how-errors-interacts-with-status_map); a matched errors entry means status_map is never consulted for this response, regardless of what value would otherwise have matched there."
+    },
+    {
+      "description": "http_status alone, without any path/equals entry present, still resolves correctly when only one errors entry could apply",
+      "http_status": 429,
+      "body": null,
+      "expected_match_index": 2,
+      "expected_failure_code": "ProviderUnavailable",
+      "note": "A transport-level absence of a body (as opposed to an empty JSON object) never prevents an http_status match, since http_status never inspects the body at all."
+    }
+  ]
+}

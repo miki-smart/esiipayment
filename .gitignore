@@ -1,3 +1,7 @@
 # mkdocs build output and staged mirror (see .github/workflows/pages.yml)
 _site/
 _docs/
+
+# Deliberately not committed: see tools/validator/README.md's "Building"
+# section. `go mod tidy`/the Dockerfile regenerate it from go.mod.
+tools/validator/go.sum

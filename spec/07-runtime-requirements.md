@@ -40,7 +40,34 @@ manifest's declared `CredentialShape` and its named `auth.fields`, and
 injects them into the `credentials` namespace at execution time. Per
 [Invariant I9](02-invariants.md#i9), a runtime must never log, persist
 unencrypted, or otherwise expose a credential value outside the expression
-context it's injected into for the duration of the call that needs it.
+context it's injected into for the duration of the call that needs it. A
+runtime applies `auth.apply` to every outbound call this provider's flows
+make; a manifest's own `flows` never repeat this per step (see
+[03-manifest-dsl.md#auth](03-manifest-dsl.md#auth)).
+
+### Token refresh must be single-flight
+
+For `auth.shape: oauth2_client_credentials`, a runtime must cache the
+token exchanged via `auth.token` and refresh it proactively at
+`refresh_at` of its lifetime, per [03-manifest-dsl.md#auth](03-manifest-dsl.md#auth) —
+never exchange a fresh token on every call.
+
+Refreshing must be **single-flight**: when multiple concurrent calls
+observe that the cached token needs refreshing, exactly one of them
+performs the token exchange; the rest wait on that one result rather than
+each independently exchanging a new token. This is a correctness
+requirement, not a performance optimization. Several real providers
+permit only one active session per credential and invalidate the
+previous token the instant a new one is issued; a runtime that lets N
+concurrent requests each exchange a new token races itself, and the
+result is every in-flight call but the last failing with an
+authentication error — a failure mode that never shows up in a
+single-request unit test and appears only under concurrent load, exactly
+where it's hardest to diagnose. A runtime's own internal locking
+mechanism for this (mutex, a leader-election pattern, whatever is
+idiomatic) is not something this spec mandates; that exactly one token
+exchange happens per refresh, regardless of how many concurrent callers
+triggered it, is.
 
 ## Idempotency and payment record lifecycle
 

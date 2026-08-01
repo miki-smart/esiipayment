@@ -13,6 +13,8 @@ import (
 
 	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/catalog"
 	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/checks"
+	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/integrator"
+	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/model"
 	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/replay"
 )
 
@@ -32,6 +34,8 @@ func main() {
 		err = runLint(os.Args[2:])
 	case "catalog":
 		err = runCatalog(os.Args[2:])
+	case "conformance-integrator":
+		err = runConformanceIntegrator(os.Args[2:])
 	case "-h", "--help", "help":
 		usage()
 		return
@@ -69,7 +73,18 @@ Usage:
   esiipayment catalog [repo-root]
       Generates the provider catalog and capability matrix as Markdown
       to stdout, from every provider's manifest.yaml/metadata.yaml.
-      Defaults to the current directory as repo-root.`)
+      Defaults to the current directory as repo-root.
+
+  esiipayment conformance-integrator [repo-root]
+      Runs the reference integrator (internal/integrator: one generic
+      handler over PaymentStatus/NextAction/FailureCode/RetryClass,
+      never a provider identifier) against every cassette of every
+      manifest.yaml-driven provider, unmodified. Fails if any cassette
+      produces an outcome the same generic handler cannot process
+      without a provider-specific branch — the machine-checkable form of
+      Invariant I12. Defaults to the current directory as repo-root.
+      Native providers (spec/03-manifest-dsl.md#native-providers) are
+      skipped with a note, the same as esiipayment replay.`)
 }
 
 func runValidate(args []string) error {
@@ -127,6 +142,11 @@ func runReplay(args []string) error {
 		return fmt.Errorf("usage: esiipayment replay <provider-dir> [--assert-golden]")
 	}
 
+	if model.IsNativeProvider(dir) {
+		fmt.Printf("%s is a native-implementation provider (capabilities.yaml, no manifest.yaml): this reference tool has no manifest to replay cassettes against. Cassette/golden-file presence is still checked by `esiipayment validate`; producing and verifying golden output against these cassettes is each native implementation's own conformance suite's job. See spec/03-manifest-dsl.md#native-providers.\n", dir)
+		return nil
+	}
+
 	repoRoot, err := findRepoRoot(dir)
 	if err != nil {
 		return err
@@ -167,6 +187,75 @@ func runReplay(args []string) error {
 
 	if failed {
 		return fmt.Errorf("replay failed for %s", dir)
+	}
+	return nil
+}
+
+// runConformanceIntegrator implements `esiipayment conformance-integrator`:
+// the reference integrator (internal/integrator) run unmodified against
+// every cassette of every manifest.yaml-driven provider under
+// <repo-root>/providers/. See usage()'s help text and
+// internal/integrator's package doc for what this checks and why.
+func runConformanceIntegrator(args []string) error {
+	root := "."
+	if len(args) > 0 {
+		root = args[0]
+	}
+	repoRoot, err := findRepoRoot(root)
+	if err != nil {
+		return err
+	}
+	exponents, err := replay.LoadExponents(repoRoot)
+	if err != nil {
+		return err
+	}
+
+	providersDir := filepath.Join(repoRoot, "providers")
+	entries, err := os.ReadDir(providersDir)
+	if err != nil {
+		return fmt.Errorf("reading %s: %w", providersDir, err)
+	}
+
+	failed := false
+	checkedAny := false
+	for _, e := range entries {
+		if !e.IsDir() || e.Name() == "_template" {
+			continue
+		}
+		dir := filepath.Join(providersDir, e.Name())
+		if model.IsNativeProvider(dir) {
+			fmt.Printf("skip %s: native-implementation provider; see spec/03-manifest-dsl.md#native-providers\n", e.Name())
+			continue
+		}
+		checkedAny = true
+
+		results, err := replay.RunAllResults(dir, exponents)
+		if err != nil {
+			fmt.Printf("FAIL %s: %v\n", e.Name(), err)
+			failed = true
+			continue
+		}
+		for _, r := range results {
+			if r.Err != nil {
+				fmt.Printf("FAIL %s/%s: replay error: %v\n", e.Name(), r.CassetteFile, r.Err)
+				failed = true
+				continue
+			}
+			outcome, err := integrator.Handle(r.Result)
+			if err != nil {
+				fmt.Printf("FAIL %s/%s: reference integrator could not handle this result unmodified: %v\n", e.Name(), r.CassetteFile, err)
+				failed = true
+				continue
+			}
+			fmt.Printf("ok   %s/%s: %s\n", e.Name(), r.CassetteFile, outcome.Description)
+		}
+	}
+
+	if !checkedAny {
+		return fmt.Errorf("no manifest.yaml-driven providers found under %s", providersDir)
+	}
+	if failed {
+		return fmt.Errorf("conformance-integrator failed: the reference integrator needed provider-specific handling somewhere, breaking Invariant I12's promise")
 	}
 	return nil
 }

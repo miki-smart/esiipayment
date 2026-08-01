@@ -102,6 +102,68 @@ manifest's `flows`, not in the value the integrator sees).
 | `Poll` | No user action; the integrator must check status again after a delay. Paired with `Processing` for in-flight or indeterminate outcomes. |
 | `Capture` | A separate, explicit capture step is required to finalize funds already authorized. |
 
+### `NextAction` carries its own payload
+
+`NextAction` is not a bare label. Every non-`null` `next_action` on a
+`PaymentResult` is a **typed object** with a discriminating `type` field
+(one of the nine members above) plus that variant's own fields:
+
+```json
+{"type": "RedirectToUrl", "url": "https://pay.example/checkout/abc123"}
+```
+
+The fields below are **required** or **optional** per variant, closed:
+a manifest may not invent an additional field on a variant, and a runtime
+must never expose provider-specific data on `next_action` under any other
+key. This is the fix for the failure mode this design otherwise invites:
+without a fixed payload shape, one provider emits `checkout_url` and
+another `payment_url` for the same `RedirectToUrl` case, both stuffed into
+the opaque `state` bag, and an integrator ends up writing
+`state.checkout_url ?? state.payment_url` — branching on provider identity
+in practice even though [Invariant I12](02-invariants.md#i12) forbids it
+in principle. A manifest author maps the provider's own field name to the
+canonical one on the left-hand side once, in the manifest; every
+integrator-facing consumer reads the same key regardless of provider.
+
+| Variant | Required fields | Optional fields |
+|---|---|---|
+| `None` | — | — |
+| `RedirectToUrl` | `url: string` | `method: string` (`GET` or `POST`; the HTTP method the redirect target expects, default `GET`) |
+| `AwaitDevicePush` | `display_ref: string` (a value safe to show the user identifying which device/session the push went to, e.g. a masked phone number) | `expires_at: string` (ISO-8601 timestamp) |
+| `SubmitOtp` | `length: integer` (number of digits/characters the user must enter) | `hint: string` (e.g. "sent to 251911***567"), `expires_at: string` |
+| `DisplayQr` | `payload: string` (the raw QR content to render) | `image_url: string` (a provider-hosted pre-rendered QR image, if available instead of/alongside rendering `payload` client-side), `expires_at: string` |
+| `ShowTransferDetails` | `account_number: string`, `institution: string`, `reference: string` (value the payer must enter as the transfer memo/reference so the provider can match it), `amount: Money` | `account_name: string`, `expires_at: string` |
+| `DialUssd` | `code: string` (the full USSD string to dial, e.g. `*899*1*0001#`) | `expires_at: string` |
+| `Poll` | `interval_ms: integer` (suggested delay before the next `sync`) | `not_before: string` (ISO-8601 timestamp; do not poll before this time) |
+| `Capture` | — | — |
+
+`expires_at`, where present, is always an ISO-8601 UTC timestamp in the
+canonical form from [06-conformance.md](06-conformance.md#canonical-json).
+`amount` on `ShowTransferDetails` is a full `Money` value (`minor_units` +
+`currency`), never a bare number, for the same reason [I1](02-invariants.md#i1)
+requires it everywhere else.
+
+A manifest's `flows` populate these fields via `emit.next_action` (see
+[03-manifest-dsl.md](03-manifest-dsl.md#flows)); `esiipayment validate`
+rejects a step that emits a variant missing one of its required fields, or
+carrying a field that variant does not define.
+
+#### Why `interval_ms` is required, even for a runtime-synthesized `Poll`
+
+Most `Poll` actions come from a manifest step's own `emit`, which supplies
+`interval_ms` like any other field. The one exception is the `Poll` a
+runtime synthesizes itself rather than reads from a manifest: the
+transport-failure case ([Invariant I4](02-invariants.md#i4)) and the
+`ProviderTimeout`/`Unknown` error short-circuit
+([03-manifest-dsl.md](03-manifest-dsl.md#how-errors-interacts-with-status_map)).
+Neither has a provider-declared interval to read. A runtime must use a
+fixed default of **5000** (five seconds) in both cases rather than
+inventing its own value or its own backoff policy at this layer: retry
+*policy* is the runtime's to configure per [Invariant I5](02-invariants.md#i5),
+but this specific field is part of a byte-comparable golden output, so the
+one value used when no manifest supplies one has to be fixed by the spec,
+not left to each runtime's discretion.
+
 ### Mapping table: provider behaviour → `NextAction`
 
 Adapter authors use this table to decide which variant a given provider flow
@@ -249,7 +311,7 @@ PaymentResult {
   idempotency_key: string
   operation:        Operation
   status:           PaymentStatus
-  next_action:      NextAction | null
+  next_action:      NextAction | null   // NextAction is {type, ...fields}; see above
   state:            object   // the flow's accumulated state; {} if empty
   failure:          null | { failure_code: FailureCode, retry_class: RetryClass }
 }
@@ -261,7 +323,8 @@ PaymentResult {
   variant pairs with a still-open `RequiresAction`/`Processing` status
   where there's deliberately nothing for the user to do yet, not with a
   finished payment). For a **non-terminal** `status`, `next_action` is
-  always present and is one of the nine `NextAction` members.
+  always present and is the typed `{type, ...fields}` object for one of
+  the nine `NextAction` members, per the payload table above.
 - `failure` is non-null if and only if `status` is `Failed`, and carries
   exactly the `FailureCode`/`RetryClass` pair the matching manifest
   `errors` entry declared (per [Invariant I10](02-invariants.md#i10)). It
@@ -270,7 +333,11 @@ PaymentResult {
   sense and carry no `FailureCode`.
 - `state` reflects whatever the flow's steps wrote via `emit.state`
   ([Invariant I6](02-invariants.md#i6)); it is `{}`, not omitted, when no
-  step wrote anything.
+  step wrote anything. `state` is opaque adapter bookkeeping only (e.g. a
+  provider-assigned session id a later `sync` call needs to address the
+  same transaction) — it never carries data the integrator is meant to
+  read to build their UI. Anything the end user needs is on `next_action`
+  instead; see [Invariant I12](02-invariants.md#i12).
 - A runtime's public API may shape its own language-idiomatic result type
   around this data (a discriminated union, a class hierarchy, whatever is
   idiomatic) as long as the same information is present; `PaymentResult`

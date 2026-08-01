@@ -1,0 +1,21 @@
+{
+  "language": "om",
+  "language_name": "Afaan Oromoo",
+  "reviewed_by_native_speaker": false,
+  "messages": {
+    "InsufficientFunds": "Kaffaltii kana xumuruuf galiin gahaan hin jiru.",
+    "InvalidRecipient": "Herrega fudhataa argamuu hin dandeenye.",
+    "RecipientLimitExceeded": "Fudhataan daangaa kaffaltii gaʼeera.",
+    "SenderLimitExceeded": "Isin daangaa kaffaltii geessaniirtu.",
+    "DuplicateRequest": "Kaffaltiin kun duraan ergameera.",
+    "AuthFailed": "Kaffaltii kana mirkaneessuu hin dandeenye. Maaloo deggersa quunnamaa.",
+    "AuthorizationDeclined": "Kaffaltiin kun didameera. Maaloo mala kaffaltii biraa yaalaa.",
+    "ProviderUnavailable": "Dhiyeessaan kaffaltii yeroof hin argamu. Maaloo yeroo xiqqoo booda irra deebiʼaa yaalaa.",
+    "ProviderTimeout": "Kaffaltii kana yeroo keessatti mirkaneessuu hin dandeenye. Haala isaa utuu ilaallu maaloo eegaa.",
+    "InvalidRequest": "Gaaffiin kaffaltii kun sirrii miti.",
+    "UnsupportedOperation": "Tarkaanfiin kun mala kaffaltii kanaaf hin deeggaramu.",
+    "Expired": "Yeroon kaffaltii kanaa darbeera.",
+    "CanceledByUser": "Kaffaltiin kun haqameera.",
+    "Unknown": "Kaffaltii kana irratti rakkoon uumameera. Haala isaa utuu ilaallu maaloo eegaa."
+  }
+}

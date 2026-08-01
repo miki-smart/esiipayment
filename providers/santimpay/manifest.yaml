@@ -16,7 +16,7 @@
 # providers/santimpay/cassettes/ are illustrative only.
 
 provider: santimpay
-spec_version: "1.0"
+spec_version: "2.0"
 display_name: "SantimPay"
 country: ET
 currencies: [ETB]
@@ -49,6 +49,9 @@ auth:
         bearer token, analogous to providers/chapa's secret_key. Confirm
         against current SantimPay documentation; the real mechanism may
         differ substantially (see the shape note above).
+  apply:
+    header: Authorization
+    value: "Bearer ${credentials.api_key}"
 
 capabilities:
   operations: [collect, sync, webhook]
@@ -90,14 +93,14 @@ flows:
           path: $.status
           values:
             SUCCESS: awaiting_redirect
-        emit:
-          state:
-            checkout_url: ${extract.data.paymentUrl}
+        emit: {}
 
       awaiting_redirect:
         emit:
           status: RequiresAction
-          next_action: RedirectToUrl
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.data.paymentUrl}
 
   sync:
     steps:
@@ -118,7 +121,7 @@ flows:
       succeeded:
         emit: { status: Succeeded }
       still_processing:
-        emit: { status: Processing, next_action: Poll }
+        emit: { status: Processing, next_action: { type: Poll, interval_ms: 5000 } }
 
   webhook:
     steps:

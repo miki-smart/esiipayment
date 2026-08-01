@@ -42,6 +42,7 @@ jobs:
           mkdir -p _docs/.github
           cp -r spec _docs/spec
           cp -r docs _docs/docs
+          cp -r tools _docs/tools
           cp -r schema _docs/schema
           cp -r vectors _docs/vectors
           cp -r providers _docs/providers

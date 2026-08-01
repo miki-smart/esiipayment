@@ -1,0 +1,45 @@
+name: integrator-promise
+
+# Runs the reference integrator (tools/validator/internal/integrator: one
+# generic handler over PaymentStatus/NextAction/FailureCode/RetryClass,
+# never a provider identifier or a provider-chosen state key) against
+# every cassette of every provider in this repository, unmodified. This
+# is the machine-checkable form of Invariant I12
+# (spec/02-invariants.md#i12) and README.md's core promise:
+#
+#   Integrator code never changes when a provider is added.
+#
+# Unlike validate.yml's per-provider matrix, this always runs against
+# every provider together in one invocation: the promise it checks is
+# specifically that the SAME code handles all of them, which a
+# per-provider matrix run in isolation could never catch (each provider
+# would trivially "pass" its own isolated run even if satisfying it
+# required a provider-specific branch). See
+# spec/03-manifest-dsl.md#native-providers for why native providers are
+# skipped here the same way esiipayment replay skips them.
+
+on:
+  pull_request:
+    paths:
+      - "providers/**"
+      - "schema/**"
+      - "tools/validator/**"
+  push:
+    branches: [main]
+
+jobs:
+  integrator-promise:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/validator/go.mod
+      - name: build esiipayment
+        working-directory: tools/validator
+        run: |
+          go mod tidy
+          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+      - name: esiipayment conformance-integrator
+        run: esiipayment conformance-integrator .

@@ -1,0 +1,89 @@
+{
+  "$comment": "The full FailureCode -> RetryClass table from vectors/errors/failure-retry-map.json, expanded into one worked case per FailureCode: a plausible provider signal that would map to it, and why. This is not a second source of truth for the mapping itself (failure-retry-map.json remains that); it exists so a runtime's conformance suite can assert against one concrete case per code, rather than only the bare table lookup. Every case's retry_class must equal failure-retry-map.json's entry for the same failure_code; esiipayment validate enforces this agreement for every manifest errors[] entry (spec/01-domain-model.md#retryclass, Invariant I10).",
+  "cases": [
+    {
+      "failure_code": "InsufficientFunds",
+      "retry_class": "DoNotRetry",
+      "example_signal": "Provider reports the payer's wallet/account balance was too low to complete the charge.",
+      "why_this_retry_class": "Retrying the identical request against the same insufficient balance will fail again; the payer must add funds or choose another method first."
+    },
+    {
+      "failure_code": "InvalidRecipient",
+      "retry_class": "DoNotRetry",
+      "example_signal": "A payout's destination account/merchant identifier does not exist or is malformed.",
+      "why_this_retry_class": "The recipient identifier is wrong; retrying sends the same bad identifier again."
+    },
+    {
+      "failure_code": "RecipientLimitExceeded",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The receiving account has hit a provider- or regulator-imposed inbound limit.",
+      "why_this_retry_class": "The limit does not clear on an immediate retry; it requires the recipient's limit window to reset or the recipient to use a different account."
+    },
+    {
+      "failure_code": "SenderLimitExceeded",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The payer has hit a daily transaction cap or KYC-tier limit.",
+      "why_this_retry_class": "Same reasoning as RecipientLimitExceeded, from the payer's side."
+    },
+    {
+      "failure_code": "DuplicateRequest",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The same idempotency key was reused with a different request payload (Invariant I7); see vectors/errors/idempotency-conflict.json.",
+      "why_this_retry_class": "This is a caller bug (a changed payload under a key that should be immutable), not a transient provider condition; retrying with the same mismatched payload reproduces the same rejection."
+    },
+    {
+      "failure_code": "AuthFailed",
+      "retry_class": "DoNotRetry",
+      "example_signal": "Bad, expired, or revoked API key/secret; provider returns 401 or an explicit auth-error body field.",
+      "why_this_retry_class": "Retrying with the same bad credential fails identically; the integrator must fix the credential first."
+    },
+    {
+      "failure_code": "AuthorizationDeclined",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The payer's issuer/wallet declined the charge for a reason other than insufficient funds specifically (e.g. a card-network decline code).",
+      "why_this_retry_class": "A decline from the payer's own issuer/wallet does not become an approval on an unmodified retry."
+    },
+    {
+      "failure_code": "ProviderUnavailable",
+      "retry_class": "SafeToRetry",
+      "example_signal": "Provider returned a 5xx server error unrelated to this specific request (maintenance window, transient overload).",
+      "why_this_retry_class": "The request itself was never processed by the provider in a way that could have already taken effect; a fresh attempt after backoff carries no double-charge risk. Contrast with ProviderTimeout below, where the request may have been received even though no response came back."
+    },
+    {
+      "failure_code": "ProviderTimeout",
+      "retry_class": "ResolveFirst",
+      "example_signal": "A transport-level timeout or connection reset before any response was received; see vectors/errors/timeout-classification.json.",
+      "why_this_retry_class": "The single highest-severity case in this table: the provider may have received and fully processed the request. See spec/01-domain-model.md#why-providertimeout-is-not-safetoretry and Invariant I4. Never SafeToRetry, regardless of how tempting a blind retry looks."
+    },
+    {
+      "failure_code": "InvalidRequest",
+      "retry_class": "DoNotRetry",
+      "example_signal": "Provider's own validation rejected the request as malformed (e.g. a badly formatted phone number or missing required field), independent of any ESIIPayment manifest bug.",
+      "why_this_retry_class": "The request is malformed; retrying the identical malformed request fails identically."
+    },
+    {
+      "failure_code": "UnsupportedOperation",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The requested operation (e.g. refund) is not supported by this provider or this specific payment method.",
+      "why_this_retry_class": "Support does not appear on retry; this is a capability mismatch, not a transient condition."
+    },
+    {
+      "failure_code": "Expired",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The payment window (e.g. a hosted checkout session's expiry) elapsed before completion.",
+      "why_this_retry_class": "A new payment attempt under a new idempotency key is the correct next step, not a retry of the expired one."
+    },
+    {
+      "failure_code": "CanceledByUser",
+      "retry_class": "DoNotRetry",
+      "example_signal": "The payer explicitly canceled (e.g. backed out of a hosted checkout page).",
+      "why_this_retry_class": "An explicit cancellation is a deliberate outcome, not a transient failure to retry past."
+    },
+    {
+      "failure_code": "Unknown",
+      "retry_class": "ResolveFirst",
+      "example_signal": "The provider reported a failure whose specific value has no errors[] entry mapping it to any other FailureCode.",
+      "why_this_retry_class": "An unmapped failure is an unconfirmed outcome, not a confirmed safe-to-retry one, for the same reason as ProviderTimeout: the raw provider value must still be preserved in flow state for diagnosis rather than silently discarded. See spec/01-domain-model.md#failurecode."
+    }
+  ]
+}

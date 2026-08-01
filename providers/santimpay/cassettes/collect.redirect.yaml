@@ -23,6 +23,7 @@ interactions:
   - request:
       method: POST
       path: /api/v1/gateway/initiate-payment
+      headers: { Authorization: "Bearer fixture-not-a-real-key" }
       body: '{"amount":"150.00","currency":"ETB","phoneNumber":"251912345678","reference":"SANTIMPAY-COLLECT-REDIRECT-0001","successRedirectUrl":"https://merchant.example/return/santimpay","failureRedirectUrl":"https://merchant.example/return/santimpay","notifyUrl":"https://merchant.example/webhooks/santimpay"}'
     response:
       status: 200

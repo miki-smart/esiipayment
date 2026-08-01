@@ -54,20 +54,19 @@ The exact method names and types are your SDK's, but every ESIIPayment SDK
 follows this pattern:
 
 ```
-result = client.collect(amount: Money(15000, "ETB"), method: "telebirr", idempotency_key: "INV-2291")
+result = client.collect(amount: Money(50000, "ETB"), idempotency_key: "INV-2291")
 
 switch result.status:
-  case RequiresAction:
-    switch result.next_action:
-      case RedirectToUrl:      redirect(result.state.checkout_url)
-      case AwaitDevicePush:    show("Approve the prompt on your phone")
-      case SubmitOtp:          promptForOtp()
-      case DisplayQr:          renderQr(result.state.qr_payload)
-      case ShowTransferDetails: showAccount(result.state.account_number)
-      case DialUssd:           show("Dial " + result.state.ussd_code)
-      // every other NextAction variant, same pattern
-  case Processing:
-    // result.next_action is Poll or None: schedule a sync() or wait for a webhook
+  case RequiresAction, Processing:
+    switch result.next_action.type:
+      case RedirectToUrl:       redirect(result.next_action.url)
+      case AwaitDevicePush:     show("Approve the prompt sent to " + result.next_action.display_ref)
+      case SubmitOtp:           promptForOtp(result.next_action.length)
+      case DisplayQr:           renderQr(result.next_action.payload)
+      case ShowTransferDetails: showAccount(result.next_action.account_number, result.next_action.amount)
+      case DialUssd:            show("Dial " + result.next_action.code)
+      case Poll:                scheduleSync(result.next_action.interval_ms)
+      case Capture, None:       // no further user action; see spec/01-domain-model.md#nextaction
   case Succeeded:
     // done
   case Failed:
@@ -75,6 +74,17 @@ switch result.status:
   case Canceled, Expired:
     // terminal, no retry
 ```
+
+Every field the switch above reads (`.url`, `.display_ref`, `.payload`,
+`.code`, ...) is on `next_action` itself, never on `result.state` — see
+[01-domain-model.md#nextaction-carries-its-own-payload](../spec/01-domain-model.md#nextaction-carries-its-own-payload).
+`state` is opaque adapter bookkeeping your integration never reads.
+[docs/tutorials/use-a-provider/TEMPLATE.md](tutorials/use-a-provider/TEMPLATE.md)
+and
+[docs/examples/integrator/reference-integrator.md](examples/integrator/reference-integrator.md)
+work through this exact switch, and the pattern for reaching a terminal
+status safely across a return handler, a webhook, and a sweeper (the
+**settler pattern**), in full.
 
 ## Handling `Processing` + `Poll`
 

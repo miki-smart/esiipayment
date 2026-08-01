@@ -1,0 +1,21 @@
+{
+  "language": "ti",
+  "language_name": "ትግርኛ",
+  "reviewed_by_native_speaker": false,
+  "messages": {
+    "InsufficientFunds": "እዚ ክፍሊት ንምዝዛም እኹል ሚዛን የለን።",
+    "InvalidRecipient": "ናይ ተቀባሊ ሕሳብ ክርከብ ኣይተኻእለን።",
+    "RecipientLimitExceeded": "ተቀባሊ ናይ ግብይት ደረት በጺሑ።",
+    "SenderLimitExceeded": "ንስኹም ናይ ግብይት ደረት በጺሕኩም።",
+    "DuplicateRequest": "እዚ ክፍሊት ቅድሚ ሕጂ ተላኢኹ እዩ።",
+    "AuthFailed": "ነዚ ክፍሊት ምርግጋጽ ኣይተኻእለን። በጃኹም ደገፍ ተወከሱ።",
+    "AuthorizationDeclined": "እዚ ክፍሊት ተነጺጉ። በጃኹም ካልእ መንገዲ ክፍሊት ፈትኑ።",
+    "ProviderUnavailable": "ኣቕራቢ ኣገልግሎት ክፍሊት ግዜያዊ ኣይርከብን ኣሎ። በጃኹም ድሕሪ ቁሩብ ግዜ ደጊምኩም ፈትኑ።",
+    "ProviderTimeout": "ነዚ ክፍሊት ኣብ ግዜኡ ምርግጋጽ ኣይተኻእለን። ኩነታቱ ክንፍትሽ እናሃለና በጃኹም ተጸበዩ።",
+    "InvalidRequest": "እዚ ናይ ክፍሊት ሕቶ ልክዕ ኣይኮነን።",
+    "UnsupportedOperation": "እዚ ተግባር ነዚ ኣገባብ ክፍሊት ኣይድገፍን።",
+    "Expired": "ናይ ክፍሊት ግዜ ኣኺሉ።",
+    "CanceledByUser": "እዚ ክፍሊት ተሰሪዙ።",
+    "Unknown": "ኣብዚ ክፍሊት ጸገም ኣጋጢሙ። ኩነታቱ ክንፍትሽ እናሃለና በጃኹም ተጸበዩ።"
+  }
+}

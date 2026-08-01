@@ -1,0 +1,21 @@
+{
+  "language": "en",
+  "language_name": "English",
+  "reviewed_by_native_speaker": true,
+  "messages": {
+    "InsufficientFunds": "There isn't enough balance to complete this payment.",
+    "InvalidRecipient": "The recipient account could not be found.",
+    "RecipientLimitExceeded": "The recipient has reached a transaction limit.",
+    "SenderLimitExceeded": "You have reached a transaction limit.",
+    "DuplicateRequest": "This payment was already submitted.",
+    "AuthFailed": "The payment could not be authorized. Please contact support.",
+    "AuthorizationDeclined": "The payment was declined. Please try another method.",
+    "ProviderUnavailable": "The payment provider is temporarily unavailable. Please try again shortly.",
+    "ProviderTimeout": "We could not confirm this payment in time. Please wait while we check its status.",
+    "InvalidRequest": "This payment request is invalid.",
+    "UnsupportedOperation": "This action is not supported for this payment method.",
+    "Expired": "This payment window has expired.",
+    "CanceledByUser": "This payment was canceled.",
+    "Unknown": "Something went wrong with this payment. Please wait while we check its status."
+  }
+}

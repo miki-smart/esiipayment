@@ -1,4 +1,3 @@
-
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
 
 # The mock provider is not a real payment provider. It has no credentials,
@@ -19,7 +18,7 @@
 # scenario value below has a matching cassette in providers/mock/cassettes/.
 
 provider: mock
-spec_version: "1.0"
+spec_version: "2.0"
 display_name: "Mock (Reference Implementation)"
 country: ET
 currencies: [ETB, USD]
@@ -103,55 +102,70 @@ flows:
       ra_redirect:
         emit:
           status: RequiresAction
-          next_action: RedirectToUrl
-          state:
-            checkout_url: ${extract.data.checkout_url}
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.data.checkout_url}
 
       ra_device_push:
         emit:
           status: RequiresAction
-          next_action: AwaitDevicePush
+          next_action:
+            type: AwaitDevicePush
+            display_ref: ${extract.data.push_ref}
 
       ra_otp:
         emit:
           status: RequiresAction
-          next_action: SubmitOtp
+          next_action:
+            type: SubmitOtp
+            length: 6
+            hint: ${extract.data.otp_hint}
 
       ra_qr:
         emit:
           status: RequiresAction
-          next_action: DisplayQr
-          state:
-            qr_payload: ${extract.data.qr_payload}
+          next_action:
+            type: DisplayQr
+            payload: ${extract.data.qr_payload}
 
       ra_transfer:
         emit:
           status: RequiresAction
-          next_action: ShowTransferDetails
-          state:
+          next_action:
+            type: ShowTransferDetails
             account_number: ${extract.data.account_number}
+            institution: ${extract.data.institution}
+            reference: ${idempotency_key}
+            amount:
+              minor_units: ${intent.amount}
+              currency: ${intent.currency}
+            account_name: ${extract.data.account_name}
 
       ra_ussd:
         emit:
           status: RequiresAction
-          next_action: DialUssd
-          state:
-            ussd_code: ${extract.data.ussd_code}
+          next_action:
+            type: DialUssd
+            code: ${extract.data.ussd_code}
 
       ra_capture:
         emit:
           status: RequiresAction
-          next_action: Capture
+          next_action:
+            type: Capture
 
       proc_poll:
         emit:
           status: Processing
-          next_action: Poll
+          next_action:
+            type: Poll
+            interval_ms: 5000
 
       proc_none:
         emit:
           status: Processing
-          next_action: None
+          next_action:
+            type: None
 
   # sync: re-queries the same reference. The mock's fake endpoint echoes
   # back the scenario originally recorded for that reference, so sync is
@@ -188,23 +202,64 @@ flows:
       expired:
         emit: { status: Expired }
       ra_redirect:
-        emit: { status: RequiresAction, next_action: RedirectToUrl }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.data.checkout_url}
       ra_device_push:
-        emit: { status: RequiresAction, next_action: AwaitDevicePush }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: AwaitDevicePush
+            display_ref: ${extract.data.push_ref}
       ra_otp:
-        emit: { status: RequiresAction, next_action: SubmitOtp }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: SubmitOtp
+            length: 6
+            hint: ${extract.data.otp_hint}
       ra_qr:
-        emit: { status: RequiresAction, next_action: DisplayQr }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: DisplayQr
+            payload: ${extract.data.qr_payload}
       ra_transfer:
-        emit: { status: RequiresAction, next_action: ShowTransferDetails }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: ShowTransferDetails
+            account_number: ${extract.data.account_number}
+            institution: ${extract.data.institution}
+            reference: ${idempotency_key}
+            amount:
+              minor_units: ${intent.amount}
+              currency: ${intent.currency}
+            account_name: ${extract.data.account_name}
       ra_ussd:
-        emit: { status: RequiresAction, next_action: DialUssd }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: DialUssd
+            code: ${extract.data.ussd_code}
       ra_capture:
-        emit: { status: RequiresAction, next_action: Capture }
+        emit:
+          status: RequiresAction
+          next_action:
+            type: Capture
       proc_poll:
-        emit: { status: Processing, next_action: Poll }
+        emit:
+          status: Processing
+          next_action:
+            type: Poll
+            interval_ms: 5000
       proc_none:
-        emit: { status: Processing, next_action: None }
+        emit:
+          status: Processing
+          next_action:
+            type: None
 
   # payout: disbursement, kept to the three outcomes a payout realistically
   # needs: Succeeded, Failed (via errors), and Processing+Poll for an
@@ -231,7 +286,7 @@ flows:
       succeeded:
         emit: { status: Succeeded }
       proc_poll:
-        emit: { status: Processing, next_action: Poll }
+        emit: { status: Processing, next_action: { type: Poll, interval_ms: 5000 } }
 
   cancel:
     steps:

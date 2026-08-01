@@ -1,0 +1,39 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# The canonical scenario every tutorial in this repository refers back
+# to: see docs/examples/scenario.md. This is otherwise an ordinary
+# collect.redirect-shaped cassette; it exists as its own file (rather
+# than reusing collect.redirect.yaml) so its fixture values — order
+# INV-2291, 500.00 ETB, Abebe Kebede — are the literal, stable values
+# every tutorial snippet-includes from, independent of collect.redirect.yaml's
+# own values ever changing for unrelated reasons.
+name: collect.canonical_scenario
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "INV-2291"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/chapa"
+  return_url: "https://merchant.example/return/chapa"
+credentials:
+  secret_key: "CHASECK_TEST-fixture-not-a-real-key"
+intent:
+  amount: 50000
+  currency: ETB
+  email: "abebe.kebede@example.com"
+  first_name: "Abebe"
+  last_name: "Kebede"
+# --8<-- [start:collect-request]
+interactions:
+  - request:
+      method: POST
+      path: /v1/transaction/initialize
+      headers: { Authorization: "Bearer CHASECK_TEST-fixture-not-a-real-key" }
+      body: '{"amount":"500.00","currency":"ETB","email":"abebe.kebede@example.com","first_name":"Abebe","last_name":"Kebede","tx_ref":"INV-2291","callback_url":"https://merchant.example/webhooks/chapa","return_url":"https://merchant.example/return/chapa"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"message":"Hosted Link","status":"success","data":{"checkout_url":"https://checkout.chapa.co/checkout/payment/inv2291"}}'
+# --8<-- [end:collect-request]

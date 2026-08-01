@@ -81,13 +81,16 @@ Namespaces available at interpolation time:
 | `input` | A value the integrator supplied mid-flow in response to a `triggers: [input]` step (e.g. an OTP digit string). |
 | `event` | The current inbound webhook's parsed body, available only inside `webhook`-triggered steps. |
 | `idempotency_key` | The idempotency key of the current operation. |
+| `auth` | The current OAuth token-exchange result (`access_token`), populated by the runtime performing `auth.token`'s call. Available only where `auth.shape` is `oauth2_client_credentials`, and only in `auth.apply.value` (or `auth.token` itself, for a provider that layers token exchanges) — never inside `flows`. |
 
 Not every namespace is available at every point in a flow: `extract` only
 exists once a `call` or `webhook` trigger has produced a response to
 extract from, `event` only exists inside a webhook step, `input` only
-exists in a step reached via an `input` trigger. `esiipayment validate` checks
-statically that a manifest never interpolates a namespace that cannot be
-populated yet at that point in its flow.
+exists in a step reached via an `input` trigger, `auth` only exists in
+`auth.apply`/`auth.token` and only when `auth.shape` is
+`oauth2_client_credentials`. `esiipayment validate` checks statically that a
+manifest never interpolates a namespace that cannot be populated yet at
+that point.
 
 ### Transforms
 

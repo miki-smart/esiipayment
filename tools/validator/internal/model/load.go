@@ -50,16 +50,45 @@ func LoadManifest(providerDir string) (*Manifest, error) {
 	if err := decodeStrict(data, &m); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", path, err)
 	}
+	if m.Auth.Token != nil && m.Auth.Token.Body != nil {
+		m.Auth.Token.Body, _ = NormalizeYAMLValue(m.Auth.Token.Body).(map[string]interface{})
+	}
 	for flowName, flow := range m.Flows {
 		for stepName, step := range flow.Steps {
 			if step.Call != nil && step.Call.Body != nil {
 				step.Call.Body, _ = NormalizeYAMLValue(step.Call.Body).(map[string]interface{})
+			}
+			if step.Emit != nil && step.Emit.NextAction != nil {
+				step.Emit.NextAction, _ = NormalizeYAMLValue(step.Emit.NextAction).(map[string]interface{})
 			}
 			flow.Steps[stepName] = step
 		}
 		m.Flows[flowName] = flow
 	}
 	return &m, nil
+}
+
+// IsNativeProvider reports whether providerDir is a native-implementation
+// provider (capabilities.yaml present) rather than a manifest.yaml-driven
+// one. See spec/03-manifest-dsl.md#native-providers.
+func IsNativeProvider(providerDir string) bool {
+	_, err := os.Stat(filepath.Join(providerDir, "capabilities.yaml"))
+	return err == nil
+}
+
+// LoadCapabilities reads and strictly decodes
+// providers/<name>/capabilities.yaml.
+func LoadCapabilities(providerDir string) (*NativeCapabilities, error) {
+	path := filepath.Join(providerDir, "capabilities.yaml")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("reading %s: %w", path, err)
+	}
+	var c NativeCapabilities
+	if err := decodeStrict(data, &c); err != nil {
+		return nil, fmt.Errorf("parsing %s: %w", path, err)
+	}
+	return &c, nil
 }
 
 // LoadMetadata reads and strictly decodes providers/<name>/metadata.yaml.

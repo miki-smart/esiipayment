@@ -33,6 +33,61 @@ var NextActions = map[string]bool{
 	"Capture":             true,
 }
 
+// NextActionFieldSpec is one NextAction variant's closed field set, from
+// spec/01-domain-model.md#nextaction-carries-its-own-payload. "type" is
+// implicitly required/allowed on every variant and is not repeated here.
+type NextActionFieldSpec struct {
+	Required []string
+	Optional []string
+}
+
+var NextActionFields = map[string]NextActionFieldSpec{
+	"None": {},
+	"RedirectToUrl": {
+		Required: []string{"url"},
+		Optional: []string{"method"},
+	},
+	"AwaitDevicePush": {
+		Required: []string{"display_ref"},
+		Optional: []string{"expires_at"},
+	},
+	"SubmitOtp": {
+		Required: []string{"length"},
+		Optional: []string{"hint", "expires_at"},
+	},
+	"DisplayQr": {
+		Required: []string{"payload"},
+		Optional: []string{"image_url", "expires_at"},
+	},
+	"ShowTransferDetails": {
+		Required: []string{"account_number", "institution", "reference", "amount"},
+		Optional: []string{"account_name", "expires_at"},
+	},
+	"DialUssd": {
+		Required: []string{"code"},
+		Optional: []string{"expires_at"},
+	},
+	"Poll": {
+		Required: []string{"interval_ms"},
+		Optional: []string{"not_before"},
+	},
+	"Capture": {},
+}
+
+// SupportedSpecVersion is the only manifest-DSL spec_version this
+// reference tool implements. Per spec/08-versioning.md, a runtime must
+// refuse to execute a manifest whose spec_version it does not implement
+// rather than attempting a best-effort interpretation.
+const SupportedSpecVersion = "2.0"
+
+// DefaultPollIntervalMs is the fixed interval_ms a runtime must use when it
+// synthesizes a Poll action itself rather than reading one from a
+// manifest step's emit: the Invariant I4 transport-failure case, and the
+// ProviderTimeout/Unknown errors short-circuit
+// (spec/03-manifest-dsl.md#how-errors-interacts-with-status_map). See
+// spec/01-domain-model.md#why-interval_ms-is-required-even-for-a-runtime-synthesized-poll.
+const DefaultPollIntervalMs = 5000
+
 var FailureCodes = map[string]bool{
 	"InsufficientFunds":      true,
 	"InvalidRecipient":       true,

@@ -12,6 +12,8 @@ environment: sandbox
 ctx:
   webhook_url: "https://merchant.example/webhooks/chapa"
   return_url: "https://merchant.example/return/chapa"
+credentials:
+  secret_key: "CHASECK_TEST-fixture-not-a-real-key"
 intent:
   amount: 15000
   currency: ETB
@@ -23,4 +25,5 @@ interactions:
   - request:
       method: POST
       path: /v1/transaction/initialize
+      headers: { Authorization: "Bearer CHASECK_TEST-fixture-not-a-real-key" }
       body: '{"amount":"150.00","currency":"ETB","email":"customer@example.com","first_name":"Abebe","last_name":"Kebede","tx_ref":"CHAPA-COLLECT-TIMEOUT-0001","callback_url":"https://merchant.example/webhooks/chapa","return_url":"https://merchant.example/return/chapa"}'

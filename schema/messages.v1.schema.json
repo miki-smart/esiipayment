@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.esiipayment.et/schema/messages.v1.schema.json",
+  "title": "ESIIPayment FailureCode Message Catalogue",
+  "description": "One language's user-facing message per FailureCode, at messages/<language-code>.json. See docs/localization.md. Every language file must carry exactly the fourteen closed FailureCode members as keys, so no SDK's UI can end up missing a translation the English baseline has.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "language_name", "messages"],
+  "properties": {
+    "language": {
+      "type": "string",
+      "pattern": "^[a-z]{2,3}$",
+      "description": "ISO 639-1 (or 639-2 where no 639-1 code exists) language code, matching this file's own name (messages/<language>.json)."
+    },
+    "language_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The language's own name for itself (e.g. \"አማርኛ\" for Amharic), for display in a language picker."
+    },
+    "reviewed_by_native_speaker": {
+      "type": "boolean",
+      "description": "False until a fluent, ideally native, speaker has reviewed this file's messages for naturalness and correctness (not just a machine or non-native draft). See docs/localization.md."
+    },
+    "messages": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "InsufficientFunds",
+        "InvalidRecipient",
+        "RecipientLimitExceeded",
+        "SenderLimitExceeded",
+        "DuplicateRequest",
+        "AuthFailed",
+        "AuthorizationDeclined",
+        "ProviderUnavailable",
+        "ProviderTimeout",
+        "InvalidRequest",
+        "UnsupportedOperation",
+        "Expired",
+        "CanceledByUser",
+        "Unknown"
+      ],
+      "properties": {
+        "InsufficientFunds": { "type": "string", "minLength": 1 },
+        "InvalidRecipient": { "type": "string", "minLength": 1 },
+        "RecipientLimitExceeded": { "type": "string", "minLength": 1 },
+        "SenderLimitExceeded": { "type": "string", "minLength": 1 },
+        "DuplicateRequest": { "type": "string", "minLength": 1 },
+        "AuthFailed": { "type": "string", "minLength": 1 },
+        "AuthorizationDeclined": { "type": "string", "minLength": 1 },
+        "ProviderUnavailable": { "type": "string", "minLength": 1 },
+        "ProviderTimeout": { "type": "string", "minLength": 1 },
+        "InvalidRequest": { "type": "string", "minLength": 1 },
+        "UnsupportedOperation": { "type": "string", "minLength": 1 },
+        "Expired": { "type": "string", "minLength": 1 },
+        "CanceledByUser": { "type": "string", "minLength": 1 },
+        "Unknown": { "type": "string", "minLength": 1 }
+      },
+      "description": "Exactly the fourteen closed FailureCode members (spec/01-domain-model.md#failurecode) mapped to one user-facing sentence each, in this file's language."
+    }
+  }
+}

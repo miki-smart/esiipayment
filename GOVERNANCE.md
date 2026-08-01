@@ -42,9 +42,9 @@ Most contributions do not need an RFC:
   existing vector documents.
 
 These follow ordinary PR review: at least one approval from the relevant
-CODEOWNERS team, passing CI (`validate.yml`, `no-code.yml`, and for
-provider changes, the runtime conformance dispatch in
-`conformance-matrix.yml`).
+CODEOWNERS team, passing CI (`validate.yml`, `no-code.yml`,
+`integrator-promise.yml`, and for provider changes, the runtime
+conformance dispatch in `conformance-matrix.yml`).
 
 ## RFC process
 

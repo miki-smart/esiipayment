@@ -18,15 +18,16 @@ Language SDKs (`esiipayment-dotnet`, `esiipayment-python`, `esiipayment-node`,
 `esiipayment-go`, `esiipayment-php`) are separate repositories that pin this one
 as a submodule.
 
-## Two roles, and where each starts
+## Three roles, and where each starts
 
 This project only works if these stay separate: see
 [spec/00-overview.md](spec/00-overview.md) for why.
 
 | Role | Needs | Start here |
 |---|---|---|
-| **Adapter author**: describes one provider's behaviour | No programming language. YAML and a text editor. | [docs/add-a-provider.md](docs/add-a-provider.md) |
-| **Runtime implementer**: builds a language SDK against this spec | One programming language, zero provider-specific knowledge. | [docs/build-a-runtime.md](docs/build-a-runtime.md) |
+| **Adapter author**: describes one provider's behaviour | No programming language. YAML, a text editor, and Docker. | [docs/tutorials/add-a-provider/](docs/tutorials/add-a-provider/index.md) |
+| **Runtime implementer**: builds a language SDK against this spec | One programming language, zero provider-specific knowledge. | [docs/tutorials/build-a-runtime/](docs/tutorials/build-a-runtime/index.md) |
+| **Spec contributor**: changes a schema, an enum, or the DSL itself | Familiarity with the existing `spec/` documents. | [docs/tutorials/modify-the-spec/](docs/tutorials/modify-the-spec/index.md) |
 
 Using an SDK to actually accept payments (not contributing here)? See
 [docs/use-a-provider.md](docs/use-a-provider.md).
@@ -50,12 +51,19 @@ providers/     One directory per provider. _template/ is a commented
                skeleton; mock/ is a complete, deterministic reference
                provider with no credentials or network dependency;
                chapa/, arifpay/, santimpay/ are real (provisional;
-               see below) provider manifests.
+               see below) provider manifests. A provider the DSL
+               genuinely cannot express is a native provider instead
+               (capabilities.yaml, no manifest.yaml; see
+               spec/03-manifest-dsl.md#native-providers) — none of the
+               providers in this repository need this today.
 tools/validator/  The one piece of application code this repo permits:
                a Go CLI (esiipayment validate/replay/lint/catalog),
                distributed as a container image so no contributor needs
                a Go toolchain.
-docs/          Practical guides for each role (see table above).
+docs/          Practical guides for each role (see table above):
+               docs/tutorials/ holds the three step-by-step tracks,
+               docs/examples/ the canonical worked scenario every track
+               refers back to.
 .github/       Issue/PR templates per role, CI workflows, CODEOWNERS.
 ```
 
@@ -79,7 +87,7 @@ signature schemes are marked inline as unverified, with the specifics of
 what's unverified recorded in each provider's `metadata.yaml`. Do not
 build production integrations on a provisional manifest without
 confirming its specifics yourself; see
-[docs/add-a-provider.md](docs/add-a-provider.md#moving-from-provisional-to-verified)
+[docs/tutorials/add-a-provider/11-verification-and-tiers.md](docs/tutorials/add-a-provider/11-verification-and-tiers.md)
 for how a manifest moves from provisional to verified. `providers/mock/`
 has no such caveat; it's fully specified by construction, not by
 reference to an external API.

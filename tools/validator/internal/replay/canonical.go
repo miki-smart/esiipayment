@@ -13,10 +13,12 @@ import (
 type PaymentResult struct {
 	Failure        *FailureInfo
 	IdempotencyKey string
-	NextAction     *string
-	Operation      string
-	State          map[string]interface{}
-	Status         string
+	// NextAction is the typed {type, ...fields} object (spec/01-domain-model.md
+	// #nextaction-carries-its-own-payload), or nil for a terminal status.
+	NextAction map[string]interface{}
+	Operation  string
+	State      map[string]interface{}
+	Status     string
 }
 
 // FailureInfo carries a Failed result's FailureCode/RetryClass pair.
@@ -55,7 +57,7 @@ func (r PaymentResult) ToCanonicalValue() map[string]interface{} {
 		"status":          r.Status,
 	}
 	if r.NextAction != nil {
-		out["next_action"] = *r.NextAction
+		out["next_action"] = r.NextAction
 	} else {
 		out["next_action"] = nil
 	}

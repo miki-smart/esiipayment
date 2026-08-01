@@ -6,6 +6,16 @@ name: no-code
 # not a run of `esiipayment lint` (which enforces the same rule) — a rule
 # this load-bearing gets an independent, dependency-free gate that does
 # not rely on the validator tool building correctly.
+#
+# This applies identically to a native provider (providers/<name>/
+# capabilities.yaml with implementation: native; see
+# spec/03-manifest-dsl.md#native-providers). A native provider's actual
+# implementation is hand-written code, but that code lives in each
+# language SDK's own repository, never in this one: this repository holds
+# only capabilities.yaml, metadata.yaml, cassettes/, and expected/ for it,
+# same as any manifest.yaml-driven provider. Declaring
+# `implementation: native` does not create an exception to this rule —
+# there is no code-file extension for the scan below to special-case.
 
 on:
   pull_request:

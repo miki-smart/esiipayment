@@ -22,9 +22,9 @@
 # Unique slug: lowercase, must match this directory's name.
 provider: TODO_provider_slug
 
-# The manifest DSL version this manifest targets. Leave at "1.0" unless you
+# The manifest DSL version this manifest targets. Leave at "2.0" unless you
 # have a specific reason to target something else. See spec/08-versioning.md.
-spec_version: "1.0"
+spec_version: "2.0"
 
 # Human-readable name shown in the generated catalog and credential forms.
 display_name: "TODO Human-Readable Provider Name"
@@ -62,6 +62,30 @@ auth:
         TODO: what this value is, and where an integrator obtains it
         (e.g. "Secret key issued in the provider's merchant dashboard;
         sent as the Bearer token on every request.").
+  # Required unless shape is "none": exactly one of header/query/body
+  # names where the resolved credential goes, so no individual flows
+  # step below has to repeat it. See spec/03-manifest-dsl.md#auth.
+  apply:
+    header: TODO_header_name   # or `query: TODO_param_name`, or `body: TODO_field_name`
+    value: "Bearer ${credentials.TODO_field_name}"  # whatever literal shape this provider expects
+  # Only for shape: oauth2_client_credentials — delete otherwise. Exchanges
+  # auth.fields for a bearer token; see spec/03-manifest-dsl.md#auth and
+  # spec/07-runtime-requirements.md#credential-handling for the mandatory
+  # single-flight refresh requirement.
+  # token:
+  #   call: { method: POST, path: /TODO/oauth/token }
+  #   body:
+  #     grant_type: client_credentials
+  #     client_id: ${credentials.client_id}
+  #     client_secret: ${credentials.client_secret}
+  #   extract:
+  #     access_token: $.access_token
+  #     expires_in: $.expires_in
+  #   refresh_at: 0.8   # refresh once this fraction of expires_in has elapsed
+  #
+  # With a token block, auth.apply.value typically reads the exchanged
+  # token instead of a raw credentials field, e.g.:
+  #   apply: { header: Authorization, value: "Bearer ${auth.access_token}" }
 
 # Limits, not just booleans: a boolean says a method exists, a limit
 # says whether an integrator's actual use case works.

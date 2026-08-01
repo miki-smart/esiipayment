@@ -18,7 +18,9 @@
     "state": {
       "tx_ref": "INV-2291",
       "checkout_url": "https://checkout.chapa.co/abc",
-      "created_at_epoch": 1768469400
+      "created_at_epoch": 1768469400,
+      "created_at_iso": "2026-01-15T09:30:00+00:00",
+      "refund_amount": -2550
     },
     "extract": {
       "data": {
@@ -33,7 +35,10 @@
       "tx_ref": "INV-2291",
       "status": "success"
     },
-    "idempotency_key": "INV-2291:0"
+    "idempotency_key": "INV-2291:0",
+    "auth": {
+      "access_token": "eyJhbGciOiJIUzI1NiJ9.fixture-access-token"
+    }
   },
   "cases": [
     { "description": "credentials namespace", "template": "${credentials.secret_key}", "expected": "sk_test_abc123" },
@@ -44,6 +49,8 @@
     { "description": "input namespace", "template": "${input.otp}", "expected": "482913" },
     { "description": "event namespace", "template": "${event.status}", "expected": "success" },
     { "description": "idempotency_key namespace (no path, whole-value namespace)", "template": "${idempotency_key}", "expected": "INV-2291:0" },
+    { "description": "auth namespace (only ever available in auth.apply.value/auth.token when auth.shape is oauth2_client_credentials; see spec/03-manifest-dsl.md#auth)", "template": "${auth.access_token}", "expected": "eyJhbGciOiJIUzI1NiJ9.fixture-access-token" },
+    { "description": "auth namespace composed into a larger literal template, the common apply.value shape", "template": "Bearer ${auth.access_token}", "expected": "Bearer eyJhbGciOiJIUzI1NiJ9.fixture-access-token" },
     { "description": "amount_major transform", "template": "${amount_major(intent.amount)}", "expected": "100.00" },
     { "description": "msisdn_et transform, local 09-format input", "template": "${msisdn_et(intent.phone)}", "expected": "251912345678" },
     { "description": "base64 transform", "template": "${base64(intent.currency)}", "expected": "RVRC" },
@@ -51,11 +58,27 @@
     { "description": "sha256_hex transform", "template": "${sha256_hex(idempotency_key)}", "expected": "d5686733a4decccc4dd2975db4ac500fd6d7a258c416130b17a73c8c016b0b5d" },
     { "description": "upper transform", "template": "${upper(intent.method)}", "expected": "TELEBIRR" },
     { "description": "lower transform", "template": "${lower(state.tx_ref)}", "expected": "inv-2291" },
-    { "description": "iso8601 transform, from epoch seconds", "template": "${iso8601(state.created_at_epoch)}", "expected": "2026-01-15T09:30:00Z" }
+    { "description": "iso8601 transform, from epoch seconds", "template": "${iso8601(state.created_at_epoch)}", "expected": "2026-01-15T09:30:00Z" },
+    { "description": "iso8601 transform, from an already-ISO-8601 string re-normalized to second precision and a literal Z", "template": "${iso8601(state.created_at_iso)}", "expected": "2026-01-15T09:30:00Z" },
+    { "description": "ctx namespace, base_url specifically (always present once an environment is resolved, even though it is never written literally in a manifest's environments block)", "template": "${ctx.base_url}", "expected": "https://api.chapa.co" },
+    { "description": "amount_major transform on a negative (refund/reversal) amount", "template": "${amount_major(state.refund_amount)}", "expected": "-25.50" }
   ],
   "additional_msisdn_et_cases": [
     { "description": "already-canonical international form is unchanged", "input": "251912345678", "expected": "251912345678" },
     { "description": "leading plus is stripped", "input": "+251912345678", "expected": "251912345678" },
     { "description": "punctuation and spaces are stripped before normalization", "input": "091-234-5678", "expected": "251912345678" }
-  ]
+  ],
+  "whole_value_type_preservation_cases": {
+    "$comment": "A ${...} template that is entirely one bare (untransformed) interpolation and embeds nowhere inside a larger string — the form emit.state and emit.next_action fields use — resolves to that value's own native JSON type, not a stringified form. This only applies to a whole-value template; a template that embeds interpolation inside a larger literal string (e.g. a call.path segment) always produces a string, since the surrounding literal characters are themselves a string. See spec/01-domain-model.md#nextaction-carries-its-own-payload, where this matters for ShowTransferDetails.amount.minor_units staying an integer.",
+    "context": {
+      "intent": { "amount": 10000, "currency": "ETB" },
+      "state": { "retry_count": 0, "verified": true }
+    },
+    "cases": [
+      { "description": "whole-value integer interpolation stays an integer, not \"10000\"", "template": "${intent.amount}", "expected": 10000, "expected_json_type": "integer" },
+      { "description": "whole-value integer interpolation of a zero value stays an integer 0, not a falsy-string or omitted", "template": "${state.retry_count}", "expected": 0, "expected_json_type": "integer" },
+      { "description": "whole-value boolean interpolation stays a boolean, not the string \"true\"", "template": "${state.verified}", "expected": true, "expected_json_type": "boolean" },
+      { "description": "the same value embedded inside a larger literal string is stringified, since the result can only be a string", "template": "amount=${intent.amount}", "expected": "amount=10000", "expected_json_type": "string" }
+    ]
+  }
 }

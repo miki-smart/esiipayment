@@ -14,10 +14,21 @@ const requiredSchemaHeader = "# yaml-language-server: $schema=https://spec.esiip
 
 // ValidateProvider runs every semantic check spec/03-manifest-dsl.md and
 // spec/06-conformance.md describe as "esiipayment validate" responsibilities
-// against providers/<name>/. It assumes the manifest/metadata/cassette
-// YAML already parsed (schema-shape and additionalProperties: false are
-// enforced during loading, via strict decoding: see internal/model/load.go).
+// against providers/<name>/, dispatching to the DSL (manifest.yaml) or
+// native (capabilities.yaml) path depending on which is present. See
+// spec/03-manifest-dsl.md#native-providers.
 func ValidateProvider(dir string) []Finding {
+	if model.IsNativeProvider(dir) {
+		return ValidateNativeProvider(dir)
+	}
+	return validateManifestProvider(dir)
+}
+
+// validateManifestProvider is ValidateProvider's DSL (manifest.yaml) path.
+// It assumes the manifest/metadata/cassette YAML already parsed
+// (schema-shape and additionalProperties: false are enforced during
+// loading, via strict decoding: see internal/model/load.go).
+func validateManifestProvider(dir string) []Finding {
 	var findings []Finding
 
 	header, err := model.FirstLine(filepath.Join(dir, "manifest.yaml"))
@@ -44,12 +55,16 @@ func ValidateProvider(dir string) []Finding {
 	}
 
 	findings = append(findings, checkRequiredFields(m)...)
+	findings = append(findings, checkSpecVersion(m.SpecVersion)...)
 	findings = append(findings, checkClosedEnums(m)...)
+	findings = append(findings, checkAuth(m)...)
 	findings = append(findings, checkOperationsAndCapabilities(m)...)
 	findings = append(findings, checkFlows(m)...)
+	findings = append(findings, checkNextActionPayloads(m)...)
 	findings = append(findings, checkErrors(m)...)
 	findings = append(findings, checkWebhook(m)...)
 	findings = append(findings, checkInterpolationNamespaces(m)...)
+	findings = append(findings, checkAuthNamespaces(m)...)
 	findings = append(findings, checkTransforms(m)...)
 	findings = append(findings, checkCassetteCoverage(m, cassettes)...)
 	if md != nil {
@@ -88,6 +103,24 @@ func checkRequiredFields(m *model.Manifest) []Finding {
 	return f
 }
 
+// checkSpecVersion rejects a manifest (or a native provider's
+// capabilities.yaml) declaring a spec_version this reference tool does
+// not implement, per spec/08-versioning.md: a runtime must refuse to
+// execute a manifest whose spec_version it does not implement, with a
+// clear error, rather than a best-effort interpretation.
+func checkSpecVersion(specVersion string) []Finding {
+	if specVersion == "" {
+		// checkRequiredFields (or its native-provider equivalent) already
+		// reports the empty case; avoid a duplicate finding here.
+		return nil
+	}
+	if specVersion != model.SupportedSpecVersion {
+		return []Finding{errf("unsupported-spec-version",
+			"spec_version %q is not implemented by this reference tool (only %q is); see spec/08-versioning.md", specVersion, model.SupportedSpecVersion)}
+	}
+	return nil
+}
+
 func checkClosedEnums(m *model.Manifest) []Finding {
 	var f []Finding
 	if !model.CredentialShapes[m.Auth.Shape] {
@@ -109,6 +142,50 @@ func checkClosedEnums(m *model.Manifest) []Finding {
 			f = append(f, errf("closed-enum", "capabilities.next_actions contains %q, not a member of NextAction", na))
 		}
 	}
+	return f
+}
+
+// checkAuth validates auth.apply and auth.token: apply is required for
+// every shape except "none" and must name exactly one of header/query/
+// body; token is required if, and only if, shape is
+// oauth2_client_credentials. See spec/03-manifest-dsl.md#auth.
+func checkAuth(m *model.Manifest) []Finding {
+	var f []Finding
+	a := m.Auth
+
+	if a.Shape == "none" {
+		if a.Apply != nil {
+			f = append(f, errf("auth-shape", "auth.apply must not be set when shape is \"none\""))
+		}
+	} else if a.Apply == nil {
+		f = append(f, errf("auth-shape", "auth.apply is required when shape is not \"none\""))
+	} else {
+		kind, name := a.Apply.Target()
+		if kind == "" {
+			f = append(f, errf("malformed-auth-apply", "auth.apply must set exactly one of header, query, or body"))
+		} else if name == "" {
+			f = append(f, errf("malformed-auth-apply", "auth.apply.%s must not be empty", kind))
+		}
+		if strings.TrimSpace(a.Apply.Value) == "" {
+			f = append(f, errf("required-field", "auth.apply.value is required and must be non-empty"))
+		}
+	}
+
+	if a.Shape == "oauth2_client_credentials" {
+		if a.Token == nil {
+			f = append(f, errf("auth-shape", "auth.token is required when shape is oauth2_client_credentials"))
+		} else {
+			if !model.HTTPMethods[a.Token.Call.Method] {
+				f = append(f, errf("closed-enum", "auth.token.call.method %q is not a recognized HTTP method", a.Token.Call.Method))
+			}
+			if a.Token.RefreshAt <= 0 || a.Token.RefreshAt > 1 {
+				f = append(f, errf("range", "auth.token.refresh_at must be > 0 and <= 1, found %v", a.Token.RefreshAt))
+			}
+		}
+	} else if a.Token != nil {
+		f = append(f, errf("auth-shape", "auth.token is only meaningful when shape is oauth2_client_credentials"))
+	}
+
 	return f
 }
 
@@ -137,12 +214,15 @@ func checkOperationsAndCapabilities(m *model.Manifest) []Finding {
 	}
 
 	// capabilities.next_actions must equal exactly the union of
-	// next_action values every flow's steps actually emit.
+	// next_action.type values every flow's steps actually emit.
 	emitted := map[string]bool{}
 	for _, flow := range m.Flows {
 		for _, step := range flow.Steps {
-			if step.Emit != nil && step.Emit.NextAction != "" {
-				emitted[step.Emit.NextAction] = true
+			if step.Emit == nil {
+				continue
+			}
+			if t := step.Emit.NextActionType(); t != "" {
+				emitted[t] = true
 			}
 		}
 	}
@@ -189,9 +269,14 @@ func checkFlows(m *model.Manifest) []Finding {
 				f = append(f, errf("closed-enum",
 					"flow %q step %q: emit.status %q is not a member of PaymentStatus", flowName, stepName, step.Emit.Status))
 			}
-			if step.Emit != nil && step.Emit.NextAction != "" && !model.NextActions[step.Emit.NextAction] {
-				f = append(f, errf("closed-enum",
-					"flow %q step %q: emit.next_action %q is not a member of NextAction", flowName, stepName, step.Emit.NextAction))
+			if step.Emit != nil && step.Emit.NextAction != nil {
+				if t := step.Emit.NextActionType(); t == "" {
+					f = append(f, errf("malformed-next-action",
+						"flow %q step %q: emit.next_action must have a string \"type\" field", flowName, stepName))
+				} else if !model.NextActions[t] {
+					f = append(f, errf("closed-enum",
+						"flow %q step %q: emit.next_action.type %q is not a member of NextAction", flowName, stepName, t))
+				}
 			}
 			// A step emitting a terminal status must not also declare a
 			// further transition: see Invariant I2.
@@ -376,9 +461,23 @@ func checkWebhook(m *model.Manifest) []Finding {
 func checkInterpolationNamespaces(m *model.Manifest) []Finding {
 	var f []Finding
 	for flowName, flow := range m.Flows {
+		// extract/event availability is flow-wide, not per-step: this
+		// reference interpreter (and every conformant runtime) threads
+		// one operation's response/webhook body through every step in
+		// the chain that handles it, not only the step whose own call or
+		// webhook trigger produced it (see spec/03-manifest-dsl.md#flows).
+		// So a step reached purely by goto/status_map, with no call of
+		// its own, may still read ${extract...}/${event...} from the
+		// entry step's response once that entry step actually is a call
+		// or webhook trigger.
+		flowHasResponse, flowHasEvent := false, false
+		if entryName, ok := entryStepOf(flow); ok {
+			entry := flow.Steps[entryName]
+			flowHasResponse = entry.Call != nil || containsTrigger(entry.Triggers, "webhook")
+			flowHasEvent = containsTrigger(entry.Triggers, "webhook")
+		}
+
 		for stepName, step := range flow.Steps {
-			hasResponse := step.Call != nil || containsTrigger(step.Triggers, "webhook")
-			hasEvent := containsTrigger(step.Triggers, "webhook")
 			hasInput := containsTrigger(step.Triggers, "input")
 
 			var strings_ []string
@@ -393,21 +492,22 @@ func checkInterpolationNamespaces(m *model.Manifest) []Finding {
 				for _, v := range step.Emit.State {
 					strings_ = append(strings_, v)
 				}
+				expr.WalkStrings(step.Emit.NextAction, func(s string) { strings_ = append(strings_, s) })
 			}
 
 			for _, s := range strings_ {
 				for _, interp := range expr.FindInterpolations(s) {
 					switch interp.Namespace {
 					case "extract":
-						if !hasResponse {
+						if !flowHasResponse {
 							f = append(f, errf("namespace-unavailable",
-								"flow %q step %q: %s references the extract namespace, but this step has no call or webhook trigger to extract from",
+								"flow %q step %q: %s references the extract namespace, but this flow's entry step has no call or webhook trigger to extract from",
 								flowName, stepName, interp.Raw))
 						}
 					case "event":
-						if !hasEvent {
+						if !flowHasEvent {
 							f = append(f, errf("namespace-unavailable",
-								"flow %q step %q: %s references the event namespace, only available in a step with triggers: [webhook]",
+								"flow %q step %q: %s references the event namespace, only available in a flow whose entry step has triggers: [webhook]",
 								flowName, stepName, interp.Raw))
 						}
 					case "input":
@@ -423,6 +523,45 @@ func checkInterpolationNamespaces(m *model.Manifest) []Finding {
 							"flow %q step %q: %s references unknown namespace %q", flowName, stepName, interp.Raw, interp.Namespace))
 					}
 				}
+			}
+		}
+	}
+	return f
+}
+
+// checkAuthNamespaces applies the position-dependent availability rules
+// (spec/04-expression-language.md) to auth.apply.value and auth.token's
+// own fields, which evaluate outside any flow run: only credentials and
+// ctx are ever available there, plus auth itself (the token-exchange
+// result), and only when shape is oauth2_client_credentials. extract,
+// event, input, intent, state, and idempotency_key never apply here,
+// since none of them are populated until a flow actually runs.
+func checkAuthNamespaces(m *model.Manifest) []Finding {
+	var f []Finding
+	a := m.Auth
+
+	var strings_ []string
+	if a.Apply != nil {
+		strings_ = append(strings_, a.Apply.Value)
+	}
+	if a.Token != nil {
+		strings_ = append(strings_, a.Token.Call.Path)
+		expr.WalkStrings(a.Token.Body, func(s string) { strings_ = append(strings_, s) })
+	}
+
+	for _, s := range strings_ {
+		for _, interp := range expr.FindInterpolations(s) {
+			switch interp.Namespace {
+			case "credentials", "ctx":
+				// Always available here.
+			case "auth":
+				if a.Shape != "oauth2_client_credentials" {
+					f = append(f, errf("namespace-unavailable",
+						"auth: %s references the auth namespace, only available when shape is oauth2_client_credentials", interp.Raw))
+				}
+			default:
+				f = append(f, errf("namespace-unavailable",
+					"auth: %s references namespace %q, which is never available in auth.apply/auth.token (only credentials, ctx, and, for oauth2_client_credentials, auth)", interp.Raw, interp.Namespace))
 			}
 		}
 	}
@@ -445,6 +584,7 @@ func checkTransforms(m *model.Manifest) []Finding {
 				for _, v := range step.Emit.State {
 					strings_ = append(strings_, v)
 				}
+				expr.WalkStrings(step.Emit.NextAction, func(s string) { strings_ = append(strings_, s) })
 			}
 			for _, s := range strings_ {
 				for _, interp := range expr.FindInterpolations(s) {
@@ -460,12 +600,19 @@ func checkTransforms(m *model.Manifest) []Finding {
 }
 
 func checkCassetteCoverage(m *model.Manifest, cassettes map[string]*model.Cassette) []Finding {
+	return checkOperationCassetteCoverage(m.Capabilities.Operations, cassettes)
+}
+
+// checkOperationCassetteCoverage is checkCassetteCoverage's operations-list
+// form, shared with the native-provider path (checks/native.go), which has
+// no *model.Manifest to read capabilities.operations off of.
+func checkOperationCassetteCoverage(operations []string, cassettes map[string]*model.Cassette) []Finding {
 	var f []Finding
 	covered := map[string]bool{}
 	for _, c := range cassettes {
 		covered[c.Operation] = true
 	}
-	for _, op := range m.Capabilities.Operations {
+	for _, op := range operations {
 		if !covered[op] {
 			f = append(f, errf("missing-cassette-coverage",
 				"operation %q is declared in capabilities.operations but no cassette in cassettes/ has operation: %s", op, op))
@@ -475,9 +622,16 @@ func checkCassetteCoverage(m *model.Manifest, cassettes map[string]*model.Casset
 }
 
 func checkMetadata(m *model.Manifest, md *model.Metadata) []Finding {
+	return checkMetadataAgainstProvider(m.Provider, md)
+}
+
+// checkMetadataAgainstProvider is checkMetadata's provider-slug form,
+// shared with the native-provider path (checks/native.go), which has no
+// *model.Manifest to read the provider slug off of.
+func checkMetadataAgainstProvider(provider string, md *model.Metadata) []Finding {
 	var f []Finding
-	if md.Provider != m.Provider {
-		f = append(f, errf("metadata-mismatch", "metadata.yaml provider %q does not match manifest.yaml provider %q", md.Provider, m.Provider))
+	if md.Provider != provider {
+		f = append(f, errf("metadata-mismatch", "metadata.yaml provider %q does not match provider %q", md.Provider, provider))
 	}
 	if !model.MetadataTiers[md.Tier] {
 		f = append(f, errf("closed-enum", "metadata.yaml tier %q is not a recognized tier", md.Tier))
@@ -499,6 +653,86 @@ func checkMetadata(m *model.Manifest, md *model.Metadata) []Finding {
 		f = append(f, errf("tier-requires-maintainer", "tier %q requires at least one named maintainer", md.Tier))
 	}
 	return f
+}
+
+// checkNextActionPayloads validates emit.next_action against the closed,
+// per-variant field set in model.NextActionFields
+// (spec/01-domain-model.md#nextaction-carries-its-own-payload): every
+// required field for the declared type must be present, and no field
+// outside that variant's required+optional set may appear. The type
+// itself being a recognized NextAction member is already checked by
+// checkFlows; this only runs once that holds.
+func checkNextActionPayloads(m *model.Manifest) []Finding {
+	var f []Finding
+	for flowName, flow := range m.Flows {
+		for stepName, step := range flow.Steps {
+			if step.Emit == nil || step.Emit.NextAction == nil {
+				continue
+			}
+			t := step.Emit.NextActionType()
+			spec, ok := model.NextActionFields[t]
+			if !ok {
+				// Not a recognized NextAction member at all; checkFlows
+				// already reported this, so avoid a duplicate finding.
+				continue
+			}
+			allowed := map[string]bool{"type": true}
+			for _, name := range spec.Required {
+				allowed[name] = true
+			}
+			for _, name := range spec.Optional {
+				allowed[name] = true
+			}
+			for _, name := range spec.Required {
+				if _, present := step.Emit.NextAction[name]; !present {
+					f = append(f, errf("next-action-missing-field",
+						"flow %q step %q: next_action.type %q requires field %q",
+						flowName, stepName, t, name))
+				}
+			}
+			var extra []string
+			for key := range step.Emit.NextAction {
+				if !allowed[key] {
+					extra = append(extra, key)
+				}
+			}
+			sort.Strings(extra)
+			for _, key := range extra {
+				f = append(f, errf("next-action-unknown-field",
+					"flow %q step %q: next_action.type %q does not define a field %q",
+					flowName, stepName, t, key))
+			}
+		}
+	}
+	return f
+}
+
+// entryStepOf returns the one step in flow that no other step's
+// goto/status_map ever targets, mirroring the entry-step computation in
+// checkFlows and internal/replay.FindEntryStep. ok is false if flow does
+// not have exactly one such step (checkFlows reports that separately).
+func entryStepOf(flow model.Flow) (name string, ok bool) {
+	targeted := map[string]bool{}
+	for _, step := range flow.Steps {
+		if step.Goto != "" {
+			targeted[step.Goto] = true
+		}
+		if step.StatusMap != nil {
+			for _, target := range step.StatusMap.Values {
+				targeted[target] = true
+			}
+		}
+	}
+	var entries []string
+	for stepName := range flow.Steps {
+		if !targeted[stepName] {
+			entries = append(entries, stepName)
+		}
+	}
+	if len(entries) != 1 {
+		return "", false
+	}
+	return entries[0], true
 }
 
 func containsTrigger(triggers []string, want string) bool {

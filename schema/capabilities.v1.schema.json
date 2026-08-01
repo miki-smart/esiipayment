@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec.esiipayment.et/schema/capabilities.v1.schema.json",
+  "title": "ESIIPayment Native Provider Capabilities",
+  "description": "Describes one provider whose behaviour is implemented as native code per language runtime, rather than as a manifest.yaml this repository's DSL can express. See spec/03-manifest-dsl.md#native-providers for the five signals that mean a provider needs this path instead of manifest.yaml. Carries only identity, credential shape, and capability metadata — never call/flow/error mechanics, since those live in each language's native implementation, not here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "provider",
+    "spec_version",
+    "implementation",
+    "display_name",
+    "country",
+    "currencies",
+    "auth",
+    "capabilities"
+  ],
+  "properties": {
+    "provider": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Unique slug identifying this provider. Must match the directory name providers/<provider>/."
+    },
+    "spec_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+$",
+      "description": "The spec version this provider targets, e.g. \"1.0\". See spec/08-versioning.md."
+    },
+    "implementation": {
+      "const": "native",
+      "description": "Always the literal \"native\": marks this provider as implemented as code per language runtime rather than as manifest.yaml. This is the only field that distinguishes this file from a manifest.yaml-driven provider at a glance."
+    },
+    "display_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable provider name shown in the generated catalog and in credential-input UI."
+    },
+    "country": {
+      "type": "string",
+      "pattern": "^[A-Z]{2}$",
+      "description": "ISO-3166-1 alpha-2 country code of the provider's primary market, e.g. \"ET\"."
+    },
+    "currencies": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Z]{3}$" },
+      "description": "ISO-4217 currency codes this provider can move. Every code listed must have an entry in vectors/money/exponents.json."
+    },
+    "auth": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["shape", "fields"],
+      "properties": {
+        "shape": {
+          "type": "string",
+          "enum": [
+            "none",
+            "api_key",
+            "key_pair",
+            "triple_key",
+            "oauth2_client_credentials",
+            "hmac",
+            "mutual_tls"
+          ],
+          "description": "The closed CredentialShape this provider uses, for generic credential-input-form generation. See spec/01-domain-model.md#credentialshape. A native implementation performs the actual credential application/token exchange in code; auth.apply/auth.token (manifest.yaml's mechanism for that) do not apply here."
+        },
+        "fields": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "description"],
+            "properties": {
+              "name": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+              "description": { "type": "string", "minLength": 1 }
+            }
+          },
+          "description": "Named credential fields the runtime must collect from the integrator, same rules as manifest.yaml's auth.fields (empty iff shape is \"none\"; Invariant I9: never a literal secret value)."
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operations", "next_actions", "currencies"],
+      "properties": {
+        "operations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": ["collect", "sync", "payout", "cancel", "refund", "webhook"]
+          },
+          "description": "The Operation values this provider supports. Every value here must have cassette coverage under cassettes/, same as a manifest.yaml-driven provider."
+        },
+        "next_actions": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "enum": [
+              "None",
+              "RedirectToUrl",
+              "AwaitDevicePush",
+              "SubmitOtp",
+              "DisplayQr",
+              "ShowTransferDetails",
+              "DialUssd",
+              "Poll",
+              "Capture"
+            ]
+          },
+          "description": "Every NextAction variant this provider's native implementation can emit. Unlike a manifest.yaml, esiipayment validate cannot cross-check this against flows (there are none to check); it is asserted by the native implementation's own conformance suite instead."
+        },
+        "currencies": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "patternProperties": {
+            "^[A-Z]{3}$": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["min_amount", "max_amount"],
+              "properties": {
+                "min_amount": { "type": "integer", "minimum": 0 },
+                "max_amount": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

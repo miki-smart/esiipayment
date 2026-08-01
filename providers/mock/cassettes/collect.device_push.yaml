@@ -18,4 +18,4 @@ interactions:
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"data":{"scenario":"device_push"}}'
+      body: '{"data":{"scenario":"device_push","push_ref":"device ending in 4567"}}'

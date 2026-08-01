@@ -46,23 +46,39 @@ assert their state machine rejects every illegal transition in that file.
 
 <a id="i3"></a>
 
-## I3: `NextAction` is closed; variants describe user obligations
+## I3: `NextAction` is closed; variants describe user obligations, with a closed payload per variant
 
 **Rule.** `NextAction` has exactly the nine members in
 [01-domain-model.md](01-domain-model.md#nextaction). Each variant names
 something the **end user** must do. It never encodes a provider API detail
 (e.g. there is no `NextAction` for "call this specific endpoint again";
 that's `Poll`, and the endpoint is a runtime implementation detail, not
-something the integrator's UI needs to know).
+something the integrator's UI needs to know). Each variant is a **typed
+object** (`{type, ...fields}`), not a bare label: the fields a variant
+carries are themselves closed, per the required/optional table in
+[01-domain-model.md#nextaction-carries-its-own-payload](01-domain-model.md#nextaction-carries-its-own-payload).
+A manifest step emitting a variant must supply every one of that variant's
+required fields and no field outside its closed set.
 
 **Rationale.** This is what keeps the integrator's UI code provider-agnostic:
 a checkout page can have exactly nine `switch` branches, one per
 `NextAction`, and never needs a tenth branch when a new provider is added.
+Closing the *payload* per variant, not just the variant name, is what
+makes that promise hold in practice rather than only in principle: a
+`NextAction` that was just a label would still force every provider's
+payload (a checkout URL, a USSD code, an account number) into the
+catch-all `state` bag under a provider-chosen key, and an integrator would
+end up branching on which key is present — exactly the provider-specific
+code path [Invariant I12](02-invariants.md#i12) forbids, just relocated
+one field over.
 
-**Enforced by.** `schema/manifest.v1.schema.json` (`emit.next_action` enum);
-`esiipayment validate` cross-checks that a manifest's declared
-`capabilities.next_actions` matches exactly the set of `next_action` values
-its `flows` actually emit.
+**Enforced by.** `schema/manifest.v1.schema.json` (`emit.next_action` as a
+discriminated `oneOf` on `type`, one required/optional field set per
+variant); `esiipayment validate` cross-checks that a manifest's declared
+`capabilities.next_actions` matches exactly the set of `next_action.type`
+values its `flows` actually emit, and separately rejects any emitted
+`next_action` missing a required field or carrying an undeclared one for
+its variant.
 
 <a id="i4"></a>
 
@@ -249,10 +265,24 @@ visible outcomes are expressed purely in terms of `PaymentStatus`,
 touching integrator code. The moment integrator code contains
 `if provider == "chapa"`, that promise is broken for every future provider
 added, because the integrator now has an implicit dependency on the current
-provider roster.
+provider roster. This includes the disguised form of the same bug: code
+that doesn't test the provider name directly but still branches on which
+provider-chosen key happens to be present in `state` (`state.checkout_url
+?? state.payment_url`) has exactly the same dependency on the current
+provider roster, just one indirection removed. [I3](#i3)'s closed,
+per-variant `next_action` payload exists specifically so this second form
+has no field left to hang the branch on.
 
-**Enforced by.** This is primarily a design discipline enforced through
-runtime API review rather than an automated vector; runtime conformance
-suites should include a test that constructs checkout logic against `mock`
-alone and asserts it requires no changes when re-run against any other
-provider's cassettes.
+**Enforced by.** `tools/validator/internal/integrator` is a reference
+integrator: one generic handler over `PaymentStatus`/`NextAction`/
+`FailureCode`/`RetryClass` alone, run unmodified against every cassette
+of every provider in this repository via `esiipayment
+conformance-integrator` (`.github/workflows/integrator-promise.yml`).
+This is the machine-checkable form of this invariant: a manifest change
+that forced a provider-specific branch into that handler (the exact
+failure mode that motivated fixing `next_action`'s payload shape; see
+[I3](#i3)) fails this check. It supplements, rather than replaces,
+design discipline through runtime API review: this reference program is
+necessarily a simplified stand-in (it doesn't drive a real UI or a real
+settlement path) for what each language runtime's own conformance suite
+should assert against `mock` and every other provider's cassettes.

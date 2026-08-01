@@ -62,6 +62,46 @@
       "description": "string values use standard JSON escaping; forward slash is not escaped and non-ASCII is emitted as UTF-8, not \\u-escaped",
       "input": { "url": "https://pay.example.et/abc", "name": "ባንእት" },
       "expected": "{\"name\":\"ባንእት\",\"url\":\"https://pay.example.et/abc\"}"
+    },
+    {
+      "description": "object keys are sorted byte-wise even when one key is non-ASCII: the multi-byte UTF-8 encoding of an Amharic key numerically follows every ASCII key, so it sorts last",
+      "input": { "ስም": "Abebe", "amount": 10000 },
+      "expected": "{\"amount\":10000,\"ስም\":\"Abebe\"}"
+    },
+    {
+      "description": "two non-ASCII keys are still sorted byte-wise relative to each other, not merely grouped after ASCII keys",
+      "input": { "ስም": "name-key", "ቀጥር": "number-key" },
+      "expected": "{\"ስም\":\"name-key\",\"ቀጥር\":\"number-key\"}"
+    },
+    {
+      "description": "control characters, quotes, and backslashes inside a string value are all escaped per standard JSON string escaping, regardless of the no-HTML-escaping rule for characters like < and &",
+      "input": { "note": "line1\nline2\ttabbed\"quoted\"back\\slash" },
+      "expected": "{\"note\":\"line1\\nline2\\ttabbed\\\"quoted\\\"back\\\\slash\"}"
+    },
+    {
+      "description": "an empty object and an empty array nested two levels deep, each rendered with no whitespace",
+      "input": { "empty_nested": { "a": {}, "b": [] } },
+      "expected": "{\"empty_nested\":{\"a\":{},\"b\":[]}}"
+    },
+    {
+      "description": "an empty array and an empty object as sibling top-level values, key order still governed purely by the key names, not by which value is empty",
+      "input": { "z": {}, "a": [] },
+      "expected": "{\"a\":[],\"z\":{}}"
+    },
+    {
+      "description": "a null value at the top level of a field (e.g. PaymentResult.next_action for a terminal status) renders as bare null, not omitted and not the string \"null\"",
+      "input": { "next_action": null, "status": "Succeeded" },
+      "expected": "{\"next_action\":null,\"status\":\"Succeeded\"}"
+    },
+    {
+      "description": "boolean values render as bare true/false, never quoted",
+      "input": { "verified": true, "provisional": false },
+      "expected": "{\"provisional\":false,\"verified\":true}"
+    },
+    {
+      "description": "a negative integer at the int64 boundary renders in full, matching the corresponding vectors/money/conversions.json int64-boundary case, never in exponential notation",
+      "input": { "minor_units": -9223372036854775808, "currency": "ETB" },
+      "expected": "{\"currency\":\"ETB\",\"minor_units\":-9223372036854775808}"
     }
   ]
 }

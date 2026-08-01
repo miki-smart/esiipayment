@@ -12,7 +12,7 @@
 # recorded real traffic.
 
 provider: arifpay
-spec_version: "1.0"
+spec_version: "2.0"
 display_name: "ArifPay"
 country: ET
 currencies: [ETB]
@@ -35,8 +35,11 @@ auth:
     - name: api_key
       description: >-
         API key issued by ArifPay for the merchant account. Recalled as
-        sent via an "x-arifpay-key" request header (see flows below);
-        confirm the exact header name against current documentation.
+        sent via an "x-arifpay-key" request header; confirm the exact
+        header name against current documentation.
+  apply:
+    header: x-arifpay-key
+    value: "${credentials.api_key}"
 
 capabilities:
   operations: [collect, sync, webhook]
@@ -63,8 +66,6 @@ flows:
           method: POST
           # UNVERIFIED path.
           path: /api/checkout/session
-          headers:
-            x-arifpay-key: ${credentials.api_key}
           body:
             # UNVERIFIED modeling choice: ArifPay's real API is recalled to
             # be beneficiary-based (a payment can be split across multiple
@@ -105,13 +106,19 @@ flows:
             "false": awaiting_redirect
         emit:
           state:
+            # session_id is genuine adapter bookkeeping: sync's call below
+            # addresses this same session, so it must persist in state
+            # (Invariant I6). paymentUrl is not bookkeeping, it's the
+            # payload the end user acts on, so it becomes next_action.url
+            # instead of a second state key (Invariant I3/I12).
             session_id: ${extract.data.sessionId}
-            payment_url: ${extract.data.paymentUrl}
 
       awaiting_redirect:
         emit:
           status: RequiresAction
-          next_action: RedirectToUrl
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.data.paymentUrl}
 
   sync:
     steps:
@@ -121,8 +128,6 @@ flows:
           # UNVERIFIED path: a session-status lookup is assumed to exist;
           # its actual shape is unconfirmed.
           path: /api/checkout/session/${state.session_id}
-          headers:
-            x-arifpay-key: ${credentials.api_key}
         triggers: [return]
         status_map:
           # UNVERIFIED path and enum values.
@@ -135,7 +140,7 @@ flows:
       succeeded:
         emit: { status: Succeeded }
       still_processing:
-        emit: { status: Processing, next_action: Poll }
+        emit: { status: Processing, next_action: { type: Poll, interval_ms: 5000 } }
 
   webhook:
     steps:

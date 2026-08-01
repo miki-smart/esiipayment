@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"INV-2291","next_action":{"type":"RedirectToUrl","url":"https://checkout.chapa.co/checkout/payment/inv2291"},"operation":"collect","state":{},"status":"RequiresAction"}

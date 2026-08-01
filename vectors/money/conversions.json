@@ -66,6 +66,32 @@
       "minor_units": -42,
       "currency": "JPY",
       "major": "-42"
+    },
+    {
+      "description": "Largest positive int64 minor_units value (2^63 - 1), exponent 2",
+      "minor_units": 9223372036854775807,
+      "currency": "ETB",
+      "major": "92233720368547758.07",
+      "why": "A naive implementation that negates before checking for overflow, or that loses precision by round-tripping through a float64, will diverge from this exact value; see the int64-boundary case immediately below for the sharper edge."
+    },
+    {
+      "description": "Smallest (most negative) int64 minor_units value (-2^63), exponent 2",
+      "minor_units": -9223372036854775808,
+      "currency": "ETB",
+      "major": "-92233720368547758.08",
+      "why": "math.MinInt64 has no positive int64 representation of its own magnitude (2^63 does not fit in a signed 64-bit integer): an implementation that computes the absolute value as a naive `-minorUnits` overflows silently right back to the original negative value on this exact input, then either panics or produces a wrong sign/digits, depending on the language's overflow behaviour. This is the sharpest edge case in the whole Money model and the one most likely to be missed without an explicit vector for it."
+    },
+    {
+      "description": "Zero-exponent currency, exact int64 boundary",
+      "minor_units": 9223372036854775807,
+      "currency": "JPY",
+      "major": "9223372036854775807"
+    },
+    {
+      "description": "Three-decimal-place currency at a value requiring all three fractional digits, non-zero and non-round",
+      "minor_units": 123456789,
+      "currency": "KWD",
+      "major": "123456.789"
     }
   ]
 }

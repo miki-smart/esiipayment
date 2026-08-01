@@ -1,8 +1,8 @@
 # esiipayment: the ESIIPayment reference validator
 
 This is the one piece of application code this repository permits (see
-[spec/00-overview.md](../../spec/00-overview.md) and the root
-[README.md](../../README.md)); everything under `providers/`, `vectors/`,
+[spec/00-overview.md](../../spec/00-overview.md) and the repository's own
+root README); everything under `providers/`, `vectors/`,
 and `schema/` is data, and `no-code.yml` in CI enforces that mechanically.
 
 ## What it does
@@ -31,6 +31,13 @@ esiipayment catalog [repo-root]
     Generates the provider catalog and capability matrix as Markdown to
     stdout: what .github/workflows/docs.yml runs so the catalog is
     generated from metadata.yaml/manifest.yaml, never hand-written.
+
+esiipayment conformance-integrator [repo-root]
+    Runs the reference integrator (internal/integrator) — one generic
+    handler over PaymentStatus/NextAction/FailureCode/RetryClass alone —
+    against every cassette of every provider, unmodified. The
+    machine-checkable form of Invariant I12: what
+    .github/workflows/integrator-promise.yml runs on every change.
 ```
 
 ## Building
@@ -49,23 +56,32 @@ docker run --rm -v "$PWD":/repo -w /repo esiipayment-validator validate provider
 
 ## Scope and honest limitations
 
-This validator was written and reviewed carefully, but **the environment
-it was authored in has no Go toolchain available, so none of this code
-has actually been compiled or run**: there is no `go build` / `go test`
-confirmation behind it, only careful manual review, cross-checked where
-possible against equivalent logic re-implemented and executed in
-JavaScript during development (the flow-dispatch and error-matching logic
-here mirrors a Node.js prototype that *was* run against every cassette in
-this repository and confirmed to produce the committed `expected/*.json`
-files). Treat this as a solid first draft that needs `go build ./...`,
-`go vet ./...`, and a run of `esiipayment validate`/`esiipayment replay
---assert-golden` against every provider in this repository as its actual
-first test, not as already-proven-correct code. `go.sum` is intentionally
-not committed for the same reason: its cryptographic hashes can't be
-hand-verified without fetching the module, and a wrong hand-written
+As of the `NextAction`-payload/`auth.apply`/native-provider/vectors
+changes (spec/08-versioning.md's `2.0.0`), this code **has** actually
+been built and run: `go build ./...`, `go vet ./...`, `go test ./...`,
+`esiipayment validate`/`esiipayment replay --assert-golden`/`esiipayment
+lint`/`esiipayment conformance-integrator` against every provider in this
+repository, via `docker build`/`golang:1.22-bookworm` in an environment
+with no local Go toolchain but working Docker. That process caught two
+real bugs neither manual review nor the earlier JavaScript prototype had
+caught (`internal/expr/expr_test.go` regression-tests both): `Extract`
+treating a bare `"$"` as resolving to the whole document instead of
+rejecting it as an invalid path, and `formatMinorUnits` overflowing on
+exactly `math.MinInt64` by negating it before taking its magnitude. Both
+are exactly the kind of edge case a byte-for-byte vector
+(`vectors/expressions/extraction.json`, `vectors/money/conversions.json`)
+exists to surface — treat that as the argument for actually running this
+tool (or at minimum its vectors) against any future change here, not for
+assuming everything else is now bug-free by extension: this remains a
+reference implementation reviewed and tested by one contributor, not a
+battle-tested library, and any *new* area of code added here should get
+the same build-and-run treatment before being trusted, especially if no
+Go toolchain is available in whatever environment made the change.
+`go.sum` is intentionally not committed: its cryptographic hashes can't
+be hand-verified without fetching the module, and a wrong hand-written
 go.sum would fail closed (safely) but confusingly. `go mod tidy` (which
-`validate.yml` and the Dockerfile both run) generates it correctly on a
-machine with real module access.
+`validate.yml`, the Dockerfile, and CI all run) generates it correctly on
+a machine with real module access.
 
 Beyond that, deliberate scope limits (not bugs, but things a fuller
 implementation should extend):

@@ -10,7 +10,7 @@ edit_uri: edit/main/
 # _docs/ is a build-time mirror of the repo root, assembled by
 # .github/workflows/pages.yml's "stage docs" step: README.md ->
 # _docs/index.md, plus copies of spec/, docs/, schema/, vectors/,
-# providers/, .github/, LICENSE, VERSION, and the root project docs.
+# providers/, tools/, .github/, LICENSE, VERSION, and the root project docs.
 # It reproduces the repo's real layout one level deeper so every
 # existing relative markdown link (docs/x.md -> ../spec/y.md, spec/x.md
 # -> ../docs/y.md, etc.) resolves unchanged, with no link rewriting.
@@ -56,14 +56,65 @@ markdown_extensions:
   - pymdownx.superfences
   - pymdownx.highlight
   - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      # base_path: "." (repo root, where this file lives) so a tutorial
+      # can include a real, CI-verified file/region by its normal
+      # repo-relative path (e.g. "providers/chapa/cassettes/collect.canonical_scenario.yaml:body")
+      # instead of pasting a copy of it inline — see docs/examples/ and
+      # spec/03-manifest-dsl.md's worked-example convention. check_paths
+      # fails the mkdocs build itself on a reference to a missing file;
+      # `esiipayment lint` (tools/validator) separately checks that a
+      # referenced named section (the ":region" part) actually exists in
+      # the target file, which check_paths alone does not catch.
+      base_path: ["."]
+      check_paths: true
 
 nav:
   - Home: index.md
   - Tutorial: docs/tutorial.md
   - Guides:
-      - Add a Provider: docs/add-a-provider.md
-      - Build a Runtime: docs/build-a-runtime.md
       - Use a Provider: docs/use-a-provider.md
+      - Localization: docs/localization.md
+  - Examples:
+      - The Canonical Scenario: docs/examples/scenario.md
+      - The Reference Integrator: docs/examples/integrator/reference-integrator.md
+  - Tutorials:
+      - Build a Runtime:
+          - Overview: docs/tutorials/build-a-runtime/index.md
+          - 1. Setup: docs/tutorials/build-a-runtime/01-setup.md
+          - 2. Primitives: docs/tutorials/build-a-runtime/02-primitives.md
+          - 3. The Expression Evaluator: docs/tutorials/build-a-runtime/03-expression-evaluator.md
+          - 4. Canonical JSON: docs/tutorials/build-a-runtime/04-canonical-json.md
+          - 5. Errors and Webhooks: docs/tutorials/build-a-runtime/05-errors-and-webhooks.md
+          - 6. The Manifest Loader: docs/tutorials/build-a-runtime/06-manifest-loader.md
+          - 7. The Interpreter: docs/tutorials/build-a-runtime/07-interpreter.md
+          - 8. Replay Against Mock First: docs/tutorials/build-a-runtime/08-replay-against-mock.md
+          - 9. The Engine: docs/tutorials/build-a-runtime/09-the-engine.md
+          - 10. Conformance Replay: docs/tutorials/build-a-runtime/10-conformance-replay.md
+          - 11. Publishing Honestly: docs/tutorials/build-a-runtime/11-publishing.md
+          - Conformance Checklist: docs/tutorials/build-a-runtime/checklist.md
+      - Add a Provider:
+          - Overview: docs/tutorials/add-a-provider/index.md
+          - 1. What a Manifest Is: docs/tutorials/add-a-provider/01-what-a-manifest-is.md
+          - 2. Editor Setup: docs/tutorials/add-a-provider/02-editor-setup.md
+          - 3. Copy the Template: docs/tutorials/add-a-provider/03-copy-the-template.md
+          - 4. Choosing NextAction: docs/tutorials/add-a-provider/04-choosing-next-action.md
+          - 5. Mapping Errors: docs/tutorials/add-a-provider/05-mapping-errors.md
+          - 6. Validating with Docker: docs/tutorials/add-a-provider/06-validating-with-docker.md
+          - 7. Recording Cassettes: docs/tutorials/add-a-provider/07-recording-cassettes.md
+          - 8. Golden Files: docs/tutorials/add-a-provider/08-golden-files.md
+          - 9. Clean Room and DCO: docs/tutorials/add-a-provider/09-clean-room-and-dco.md
+          - 10. Opening the PR: docs/tutorials/add-a-provider/10-opening-the-pr.md
+          - 11. Verification and Tiers: docs/tutorials/add-a-provider/11-verification-and-tiers.md
+      - Modify the Spec:
+          - Overview: docs/tutorials/modify-the-spec/index.md
+          - 1. What's Frozen: docs/tutorials/modify-the-spec/01-whats-frozen.md
+          - 2. Rule of Least Power: docs/tutorials/modify-the-spec/02-rule-of-least-power.md
+          - 3. The RFC Process: docs/tutorials/modify-the-spec/03-the-rfc-process.md
+          - 4. Change Classes: docs/tutorials/modify-the-spec/04-change-classes.md
+          - 5. The Obligation You Create: docs/tutorials/modify-the-spec/05-the-obligation-you-create.md
+          - 6. Versioning and Deprecation: docs/tutorials/modify-the-spec/06-versioning-and-deprecation.md
+      - Use a Provider (Template): docs/tutorials/use-a-provider/TEMPLATE.md
   - Specification:
       - Overview: spec/00-overview.md
       - Domain Model: spec/01-domain-model.md

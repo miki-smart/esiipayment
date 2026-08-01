@@ -10,7 +10,7 @@
 # of plausible responses, not recorded real traffic.
 
 provider: chapa
-spec_version: "1.0"
+spec_version: "2.0"
 display_name: "Chapa"
 country: ET
 # Chapa's own docs (as last recalled) advertise ETB as the primary
@@ -31,6 +31,7 @@ environments:
   production:
     base_url: https://api.chapa.co
 
+# --8<-- [start:auth-section]
 auth:
   # UNVERIFIED shape: modeled as a single bearer secret key, which matches
   # the hosted-checkout initialize/verify flow as recalled. Chapa may also
@@ -46,7 +47,12 @@ auth:
         prefixed CHASECK_TEST-, live keys CHASECK-. Sent as
         "Authorization: Bearer <secret_key>" on every request. (Prefix
         format as recalled; confirm against current dashboard.)
+  apply:
+    header: Authorization
+    value: "Bearer ${credentials.secret_key}"
+# --8<-- [end:auth-section]
 
+# --8<-- [start:capabilities-section]
 capabilities:
   operations: [collect, sync, webhook]
   next_actions: [RedirectToUrl, Poll]
@@ -57,7 +63,9 @@ capabilities:
       # manifest.
       min_amount: 100
       max_amount: 100000000
+# --8<-- [end:capabilities-section]
 
+# --8<-- [start:operations-section]
 operations:
   collect:
     entry_flow: collect
@@ -65,11 +73,14 @@ operations:
     entry_flow: sync
   webhook:
     entry_flow: webhook
+# --8<-- [end:operations-section]
 
+# --8<-- [start:flows-section]
 flows:
   # Hosted-checkout pattern: initialize returns a checkout_url the payer is
   # redirected to; the actual outcome arrives later via sync (verify) or
   # webhook.
+  # --8<-- [start:flows-collect-section]
   collect:
     steps:
       initialize:
@@ -96,14 +107,15 @@ flows:
           path: $.status
           values:
             success: awaiting_redirect
-        emit:
-          state:
-            checkout_url: ${extract.data.checkout_url}
+        emit: {}
 
       awaiting_redirect:
         emit:
           status: RequiresAction
-          next_action: RedirectToUrl
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.data.checkout_url}
+  # --8<-- [end:flows-collect-section]
 
   sync:
     steps:
@@ -123,7 +135,7 @@ flows:
       succeeded:
         emit: { status: Succeeded }
       still_processing:
-        emit: { status: Processing, next_action: Poll }
+        emit: { status: Processing, next_action: { type: Poll, interval_ms: 5000 } }
 
   webhook:
     steps:
@@ -137,7 +149,9 @@ flows:
 
       succeeded:
         emit: { status: Succeeded }
+# --8<-- [end:flows-section]
 
+# --8<-- [start:errors-section]
 errors:
   # Initialize-time validation failure (missing/malformed field). Chapa is
   # recalled to return a 200 with a top-level "status": "failed" and a
@@ -171,7 +185,9 @@ errors:
       transport: timeout
     failure_code: ProviderTimeout
     retry_class: ResolveFirst
+# --8<-- [end:errors-section]
 
+# --8<-- [start:webhook-section]
 webhook:
   verification:
     # UNVERIFIED scheme and header name. Recalled as an HMAC-SHA256 hex
@@ -183,3 +199,4 @@ webhook:
     signature_header: Chapa-Signature
     secret: ${credentials.secret_key}
   body_format: json
+# --8<-- [end:webhook-section]

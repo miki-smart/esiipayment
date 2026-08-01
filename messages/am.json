@@ -1,0 +1,21 @@
+{
+  "language": "am",
+  "language_name": "አማርኛ",
+  "reviewed_by_native_speaker": false,
+  "messages": {
+    "InsufficientFunds": "ይህን ክፍያ ለማጠናቀቅ በቂ ቀሪ ሂሳብ የለም።",
+    "InvalidRecipient": "የተቀባዩ አካውንት አልተገኘም።",
+    "RecipientLimitExceeded": "ተቀባዩ የግብይት ገደብ ደርሷል።",
+    "SenderLimitExceeded": "እርስዎ የግብይት ገደብ ደርሰዋል።",
+    "DuplicateRequest": "ይህ ክፍያ ቀደም ብሎ ተልኳል።",
+    "AuthFailed": "ክፍያውን ማረጋገጥ አልተቻለም። እባክዎ ድጋፍን ያግኙ።",
+    "AuthorizationDeclined": "ክፍያው ውድቅ ተደርጓል። እባክዎ ሌላ የክፍያ ዘዴ ይሞክሩ።",
+    "ProviderUnavailable": "የክፍያ አገልግሎት ሰጪው በጊዜያዊነት አገልግሎት እየሰጠ አይደለም። እባክዎ ትንሽ ቆይተው እንደገና ይሞክሩ።",
+    "ProviderTimeout": "ይህን ክፍያ በጊዜው ማረጋገጥ አልቻልንም። ሁኔታውን በምንፈትሽበት ጊዜ እባክዎ ይጠብቁ።",
+    "InvalidRequest": "ይህ የክፍያ ጥያቄ ልክ ያልሆነ ነው።",
+    "UnsupportedOperation": "ይህ ተግባር ለዚህ የክፍያ ዘዴ አይደገፍም።",
+    "Expired": "የክፍያ ጊዜው አልፏል።",
+    "CanceledByUser": "ይህ ክፍያ ተሰርዟል።",
+    "Unknown": "በዚህ ክፍያ ላይ ችግር ተፈጥሯል። ሁኔታውን በምንፈትሽበት ጊዜ እባክዎ ይጠብቁ።"
+  }
+}

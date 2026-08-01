@@ -34,11 +34,58 @@ type Environment struct {
 type Auth struct {
 	Shape  string            `yaml:"shape"`
 	Fields []CredentialField `yaml:"fields"`
+	Apply  *AuthApply        `yaml:"apply"`
+	Token  *AuthToken        `yaml:"token"`
 }
 
 type CredentialField struct {
 	Name        string `yaml:"name"`
 	Description string `yaml:"description"`
+}
+
+// AuthApply says where the resolved credential goes on every outbound
+// call: exactly one of Header/Query/Body is set. See
+// spec/03-manifest-dsl.md#auth.
+type AuthApply struct {
+	Header string `yaml:"header"`
+	Query  string `yaml:"query"`
+	Body   string `yaml:"body"`
+	Value  string `yaml:"value"`
+}
+
+// Target returns which of header/query/body is set, and its name, or
+// ("", "") if none is (a shape-validation error checks.checkAuth reports
+// separately).
+func (a *AuthApply) Target() (kind, name string) {
+	switch {
+	case a.Header != "":
+		return "header", a.Header
+	case a.Query != "":
+		return "query", a.Query
+	case a.Body != "":
+		return "body", a.Body
+	default:
+		return "", ""
+	}
+}
+
+// AuthToken is the token-exchange mechanism behind the
+// oauth2_client_credentials CredentialShape. See spec/03-manifest-dsl.md#auth.
+type AuthToken struct {
+	Call      AuthTokenCall          `yaml:"call"`
+	Body      map[string]interface{} `yaml:"body"`
+	Extract   AuthTokenExtract       `yaml:"extract"`
+	RefreshAt float64                `yaml:"refresh_at"`
+}
+
+type AuthTokenCall struct {
+	Method string `yaml:"method"`
+	Path   string `yaml:"path"`
+}
+
+type AuthTokenExtract struct {
+	AccessToken string `yaml:"access_token"`
+	ExpiresIn   string `yaml:"expires_in"`
 }
 
 type Capabilities struct {
@@ -81,9 +128,25 @@ type StatusMap struct {
 }
 
 type Emit struct {
-	Status     string            `yaml:"status"`
-	NextAction string            `yaml:"next_action"`
-	State      map[string]string `yaml:"state"`
+	Status string            `yaml:"status"`
+	State  map[string]string `yaml:"state"`
+	// NextAction is the raw decoded next_action mapping ({"type": "...",
+	// ...variant fields}), not a fixed struct: its field set varies per
+	// variant (see model.NextActionFields) the same way Call.Body's
+	// varies per provider, so it goes through the same generic-map path
+	// and the same NormalizeYAMLValue pass as Call.Body (see load.go).
+	// nil when a step's emit does not set next_action at all.
+	NextAction map[string]interface{} `yaml:"next_action"`
+}
+
+// NextActionType returns the "type" discriminator of e's next_action, or
+// "" if e or e.NextAction is nil, or the field is missing/not a string.
+func (e *Emit) NextActionType() string {
+	if e == nil || e.NextAction == nil {
+		return ""
+	}
+	s, _ := e.NextAction["type"].(string)
+	return s
 }
 
 // ErrorMapping's Match is one of three kinds; exactly one of
@@ -125,6 +188,30 @@ type WebhookVerification struct {
 	Scheme          string `yaml:"scheme"`
 	SignatureHeader string `yaml:"signature_header"`
 	Secret          string `yaml:"secret"`
+}
+
+// NativeCapabilities is providers/<name>/capabilities.yaml: the identity
+// and capability declaration for a provider implemented as native code
+// per language runtime instead of manifest.yaml. See
+// spec/03-manifest-dsl.md#native-providers.
+type NativeCapabilities struct {
+	Provider       string       `yaml:"provider"`
+	SpecVersion    string       `yaml:"spec_version"`
+	Implementation string       `yaml:"implementation"`
+	DisplayName    string       `yaml:"display_name"`
+	Country        string       `yaml:"country"`
+	Currencies     []string     `yaml:"currencies"`
+	Auth           NativeAuth   `yaml:"auth"`
+	Capabilities   Capabilities `yaml:"capabilities"`
+}
+
+// NativeAuth is capabilities.yaml's auth block: shape/fields only, for
+// generic credential-input-form generation. Unlike manifest.yaml's Auth,
+// it has no apply/token: a native implementation applies credentials and
+// performs any token exchange in code, not through the DSL's mechanism.
+type NativeAuth struct {
+	Shape  string            `yaml:"shape"`
+	Fields []CredentialField `yaml:"fields"`
 }
 
 // Metadata is providers/<name>/metadata.yaml.

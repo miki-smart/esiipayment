@@ -1,1 +1,1 @@
-{"failure":null,"idempotency_key":"MOCK-COLLECT-USSD-0001","next_action":"DialUssd","operation":"collect","state":{"scenario":"ussd","ussd_code":"*899*1*0001#"},"status":"RequiresAction"}
+{"failure":null,"idempotency_key":"MOCK-COLLECT-USSD-0001","next_action":{"code":"*899*1*0001#","type":"DialUssd"},"operation":"collect","state":{"scenario":"ussd"},"status":"RequiresAction"}

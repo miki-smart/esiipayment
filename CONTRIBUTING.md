@@ -7,9 +7,9 @@ this whole repository front to back.
 
 | You are... | You need... | Start at |
 |---|---|---|
-| An **adapter author** describing a payment provider's behaviour | No programming language. YAML and a text editor. | [docs/add-a-provider.md](docs/add-a-provider.md) |
-| A **runtime implementer** building a language SDK against this spec | One programming language, no provider-specific knowledge. | [docs/build-a-runtime.md](docs/build-a-runtime.md) |
-| A **spec contributor** proposing a change to the contract itself | Familiarity with the existing `spec/` documents. | [GOVERNANCE.md](GOVERNANCE.md#rfc-process) |
+| An **adapter author** describing a payment provider's behaviour | No programming language. YAML, a text editor, and Docker. | [docs/tutorials/add-a-provider/](docs/tutorials/add-a-provider/index.md) |
+| A **runtime implementer** building a language SDK against this spec | One programming language, no provider-specific knowledge. | [docs/tutorials/build-a-runtime/](docs/tutorials/build-a-runtime/index.md) |
+| A **spec contributor** proposing a change to the contract itself | Familiarity with the existing `spec/` documents. | [docs/tutorials/modify-the-spec/](docs/tutorials/modify-the-spec/index.md) (or straight to [GOVERNANCE.md](GOVERNANCE.md#rfc-process)) |
 
 If you're an **integrator** using an SDK to accept payments rather than
 contributing to this repository, you want

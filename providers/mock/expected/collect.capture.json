@@ -1,1 +1,1 @@
-{"failure":null,"idempotency_key":"MOCK-COLLECT-CAPTURE-0001","next_action":"Capture","operation":"collect","state":{"scenario":"capture"},"status":"RequiresAction"}
+{"failure":null,"idempotency_key":"MOCK-COLLECT-CAPTURE-0001","next_action":{"type":"Capture"},"operation":"collect","state":{"scenario":"capture"},"status":"RequiresAction"}

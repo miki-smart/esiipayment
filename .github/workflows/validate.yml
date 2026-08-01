@@ -3,6 +3,16 @@ name: validate
 # Runs the reference validator (tools/validator) against every changed
 # provider on a PR, plus a repo-wide lint. See tools/validator/README.md
 # and spec/06-conformance.md for what these checks cover.
+#
+# Native providers (providers/<name>/capabilities.yaml with
+# implementation: native; see spec/03-manifest-dsl.md#native-providers)
+# need no special-casing here: `esiipayment validate` detects
+# capabilities.yaml and validates it (plus cassette/golden-file coverage)
+# instead of manifest.yaml, and `esiipayment replay --assert-golden`
+# prints an informational message and exits 0 rather than erroring, since
+# this reference tool has no manifest to replay a native provider's
+# cassettes against — that verification is each native implementation's
+# own conformance suite's job.
 
 on:
   pull_request:

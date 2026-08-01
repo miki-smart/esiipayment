@@ -1,7 +1,9 @@
 {
-  "$comment": "Extraction vectors for the JSONPath subset in spec/04-expression-language.md#extraction--a-jsonpath-subset. Every runtime's extraction implementation must match every case here exactly, including the missing-path cases: `missing: true` means the runtime's result for this path must be the explicit missing-value the runtime uses internally to mean 'did not resolve': never null coerced to a value, never an empty string, never a thrown error for extraction itself (a step that requires the value to resolve fails at the point it's used, not at extraction).",
+  "$comment": "Extraction vectors for the JSONPath subset in spec/04-expression-language.md#extraction--a-jsonpath-subset. Every runtime's extraction implementation must match every case here exactly, including the missing-path cases: `missing: true` means the runtime's result for this path must be the explicit missing-value the runtime uses internally to mean 'did not resolve': never null coerced to a value, never an empty string, never a thrown error for extraction itself (a step that requires the value to resolve fails at the point it's used, not at extraction). `invalid: true` is a distinct marker from `missing: true`: it means the path string itself is not well-formed grammar (e.g. no navigation segment at all), which a runtime may reject earlier (at manifest-load or validate time) rather than at extraction time, whereas a `missing: true` path is grammatically valid but does not resolve against this particular document.",
   "document": {
     "status": "success",
+    "verified": true,
+    "count": 0,
     "data": {
       "checkout_url": "https://pay.example.et/abc123",
       "customer": {
@@ -11,7 +13,10 @@
       "items": [
         { "status": "pending", "amount": 500 },
         { "status": "success", "amount": 1500 }
-      ]
+      ],
+      "empty_items": [],
+      "matrix": [[1, 2], [3, 4]],
+      "single": [{ "code": "only-one" }]
     }
   },
   "cases": [
@@ -79,6 +84,73 @@
       "description": "wildcard over a non-existent array yields missing, not an empty array",
       "path": "$.data.absent_list[*].status",
       "missing": true
+    },
+    {
+      "description": "boolean field value, distinct from a string \"true\"",
+      "path": "$.verified",
+      "expected": true
+    },
+    {
+      "description": "zero is a resolved value, not missing",
+      "path": "$.count",
+      "expected": 0
+    },
+    {
+      "description": "null is a resolved value in its own right when it is the leaf, distinct from a missing/absent path",
+      "path": "$.data.customer.note",
+      "expected": null
+    },
+    {
+      "description": "single-element array, index 0",
+      "path": "$.data.single[0].code",
+      "expected": "only-one"
+    },
+    {
+      "description": "wildcard projection over a single-element array still yields a one-element array, not the bare scalar",
+      "path": "$.data.single[*].code",
+      "expected": ["only-one"]
+    },
+    {
+      "description": "wildcard projection over an empty array yields an empty array, a resolved value distinct from the missing-array case above",
+      "path": "$.data.empty_items[*].status",
+      "expected": []
+    },
+    {
+      "description": "negative array index is not supported by this grammar; treated as an unresolved path, never Python-style from-the-end indexing",
+      "path": "$.data.items[-1]",
+      "missing": true
+    },
+    {
+      "description": "nested array-of-arrays, first level index only (no [i][j] chaining in this grammar)",
+      "path": "$.data.matrix[0]",
+      "expected": [1, 2]
+    },
+    {
+      "description": "field access attempted on a scalar (not an object) fails to resolve, not a type error",
+      "path": "$.status.nested",
+      "missing": true
+    },
+    {
+      "description": "array index attempted on a non-array field fails to resolve",
+      "path": "$.status[0]",
+      "missing": true
+    },
+    {
+      "description": "wildcard attempted on a non-array field fails to resolve",
+      "path": "$.status[*].anything",
+      "missing": true
+    },
+    {
+      "description": "bare $ with no further segments is not a valid path at all (the grammar requires at least one .field or [index] segment; see schema/manifest.v1.schema.json's status_map.path pattern), distinct from a path that resolves to missing",
+      "path": "$",
+      "invalid": true,
+      "why": "Every real use of an extraction path (status_map.path, errors[].match.path, ${extract...} interpolation) requires navigating to a specific field; a runtime should treat a bare $ the same as any other malformed path, not as a request for the whole document."
+    },
+    {
+      "description": "wildcard projecting a field that is itself present-but-null on every element yields an array of nulls, not missing",
+      "path": "$.data.items[*].missing_on_every_element",
+      "missing": true,
+      "why": "Every element of data.items lacks this field entirely (not merely null), so the wildcard projection itself fails to resolve rather than yielding [null, null]; contrast with the single-element null-leaf case above, where the field is present with a null value."
     }
   ]
 }

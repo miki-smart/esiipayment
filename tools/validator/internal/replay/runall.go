@@ -68,3 +68,40 @@ func RunAll(providerDir string, exponents map[string]int) ([]Result, error) {
 	}
 	return results, nil
 }
+
+// NamedResult pairs one cassette's file name with its replayed
+// PaymentResult (or the error replaying it), for callers (the reference
+// integrator: internal/integrator) that need the structured result
+// rather than its canonical JSON string.
+type NamedResult struct {
+	CassetteFile string
+	Result       *PaymentResult
+	Err          error
+}
+
+// RunAllResults is RunAll's structured-result form: same cassette
+// loading and ordering, but returns each cassette's *PaymentResult
+// directly instead of canonicalizing it to a JSON string.
+func RunAllResults(providerDir string, exponents map[string]int) ([]NamedResult, error) {
+	m, err := model.LoadManifest(providerDir)
+	if err != nil {
+		return nil, err
+	}
+	cassettes, err := model.LoadCassettes(providerDir)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for name := range cassettes {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var results []NamedResult
+	for _, name := range names {
+		pr, err := Run(m, cassettes[name], exponents)
+		results = append(results, NamedResult{CassetteFile: name, Result: pr, Err: err})
+	}
+	return results, nil
+}

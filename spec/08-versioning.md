@@ -9,9 +9,19 @@ contributors: the **spec** itself (this repository as a whole), the
 ## The spec (this repository)
 
 The repository's own version lives in [`VERSION`](../VERSION) at the root
-(currently `1`) and follows SemVer for the repository as a whole
-(`schema/`, `spec/`, the expression language, the invariants). A runtime or
-tooling that pins `esiipayment-spec` as a submodule pins this version.
+as a full SemVer string (currently `2.0.0`) and follows SemVer for the
+repository as a whole (`schema/`, `spec/`, the expression language, the
+invariants). A runtime or tooling that pins `esiipayment-spec` as a
+submodule pins this version.
+
+`VERSION` is always a quoted-looking, three-component `MAJOR.MINOR.PATCH`
+string (even though the file itself is plain text, not YAML/JSON, so
+nothing is literally quoted) — never a bare major-only integer. This is
+worth stating explicitly because an earlier revision of this repository
+left `VERSION` as a bare `1`, which does not by itself convey minor/patch
+information the way `spec_version` below's quoted `"1.0"` string format
+already did; both now use the same recognizable string-version shape, so
+neither reads as "the more casual one."
 
 - **Major**: a breaking change to a closed enum
   ([01-domain-model.md](01-domain-model.md)), the manifest schema in a way
@@ -28,7 +38,7 @@ tooling that pins `esiipayment-spec` as a submodule pins this version.
 
 ## `spec_version` (the manifest DSL)
 
-Every manifest declares `spec_version: "1.0"`
+Every manifest declares `spec_version: "2.0"`
 ([03-manifest-dsl.md](03-manifest-dsl.md)): the version of the *manifest
 DSL* (schema shape, expression language, flow semantics) it's written
 against, independent of the repository's own overall `VERSION`. This
@@ -44,6 +54,33 @@ not implement, with a clear error, rather than attempting a best-effort
 interpretation: silently guessing at semantics for a DSL version a
 runtime wasn't built against is exactly the kind of cross-runtime
 divergence [06-conformance.md](06-conformance.md) exists to prevent.
+`esiipayment validate` enforces this for the reference tool itself: it
+rejects any manifest whose `spec_version` is not `"2.0"`, since this
+repository's reference implementation (`tools/validator`) and every
+provider manifest in it were migrated to the `2.0` DSL shape together,
+in the same change, rather than via the gradual multi-version migration
+window this indirection exists to support (see the changelog entry
+below for why).
+
+### `1.0` → `2.0`: why this migrated in one step, not gradually
+
+The `2.0` DSL shape (`emit.next_action` as a typed object rather than a
+bare `NextAction` label, and `auth.apply`/`auth.token`) is a breaking
+change to every `1.0` manifest: per
+[GOVERNANCE.md](../GOVERNANCE.md#rfc-process), a change of this kind
+normally goes through the RFC process, and per the migration-window
+design above, a runtime would normally be expected to support both
+versions while providers migrate individually. Neither happened here:
+every provider manifest in this repository (there were only four, all
+maintained in this same repository) was migrated to `2.0` in the same
+change that introduced it, which is why `tools/validator` implements
+`2.0` only rather than both. A downstream runtime that already
+implements `1.0` and needs to keep serving `1.0`-shaped manifests during
+its own migration is not required to drop `1.0` support on the same
+timeline; this repository's `VERSION` bump to `2.0.0` marks that `1.0`
+manifests are no longer what this repository's own reference tooling
+and provider manifests use, not that every runtime must migrate
+instantly.
 
 ## A provider manifest's own revision
 

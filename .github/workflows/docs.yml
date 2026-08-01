@@ -18,12 +18,14 @@ on:
       - "providers/**"
       - "schema/**"
       - "tools/validator/**"
+      - "docs/**"
   push:
     branches: [main]
     paths:
       - "providers/**"
       - "schema/**"
       - "tools/validator/**"
+      - "docs/**"
   workflow_dispatch:
 
 jobs:
@@ -47,6 +49,23 @@ jobs:
         run: |
           mkdir -p docs/generated
           esiipayment catalog . > docs/generated/catalog.md
+
+      - name: check snippet references (docs/**, pymdownx.snippets)
+        run: |
+          set +e
+          output=$(esiipayment lint . 2>&1)
+          set -e
+          echo "$output"
+          if echo "$output" | grep -q "snippet"; then
+            echo
+            echo "A docs/**/*.md file references a --8<-- snippet target file or [start:x]/[end:x] section that doesn't exist (see docs/examples/scenario.md and mkdocs.yml's pymdownx.snippets config)."
+            exit 1
+          fi
+        # esiipayment lint also re-checks providers/ and messages/, which
+        # is harmless here but not this step's point: this step exists so
+        # a docs-only PR (no providers/schema/tools/validator change, so
+        # validate.yml's own lint job never runs) still gets the
+        # snippet-reference check specifically.
 
       - name: generate schema reference
         run: |

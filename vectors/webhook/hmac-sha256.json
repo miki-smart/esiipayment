@@ -40,5 +40,39 @@
     "signature": "1dbf340e95462dcd89205a804462455b50c7e1db394b7f1bdf08316c9175af71",
     "expected_result": "rejected",
     "why": "The signature was computed over raw_body's exact bytes. Even though this body is logically equivalent field-for-field, its bytes differ (key order and whitespace), so recomputing HMAC-SHA256 over it does not reproduce the received signature. A runtime that reformats the body before verifying would wrongly reject a legitimate differently-formatted request in one direction, and wrongly accept a forged one in the other, which is exactly why verification must run over the untouched raw body."
+  },
+  "wrong_algorithm": {
+    "description": "The inbound signature was actually computed with HMAC-SHA1 against the same secret and raw_body, not HMAC-SHA256, e.g. because the sender's own signing code has a bug or is misconfigured relative to what this manifest declares.",
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"100.00\",\"currency\":\"ETB\"}",
+    "signature": "8d18bbb1d6f2bd2e6c5c98c672292bf88f8d53e5",
+    "expected_result": "rejected",
+    "why": "Recomputing HMAC-SHA256 (per the manifest's declared scheme) over raw_body yields 1dbf340e95462dcd89205a804462455b50c7e1db394b7f1bdf08316c9175af71, a completely different value (and a different length: SHA-1 produces 20 bytes/40 hex characters, SHA-256 produces 32 bytes/64 hex characters) from the received HMAC-SHA1 signature. A runtime must reject this the same way it rejects any other mismatch, not attempt to detect and fall back to a different algorithm: the scheme a manifest declares is the only one ever computed against."
+  },
+  "malformed_signature_encoding": {
+    "description": "The signature header is present but its value is not valid hex at all (contains a non-hex character) for a scheme requiring hex.",
+    "scheme": "hmac_sha256_hex",
+    "signature_header": "Chapa-Signature",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"100.00\",\"currency\":\"ETB\"}",
+    "signature": "not-valid-hex-zzzz",
+    "expected_result": "rejected",
+    "why": "A signature value that cannot even be decoded per the declared scheme's encoding must be rejected the same way an incorrect-but-well-formed signature is: a decoding failure is not a distinct third outcome, and must never be treated as an error that bypasses verification (e.g. by skipping the comparison and accepting the request)."
+  },
+  "malformed_signature_encoding_base64": {
+    "description": "The signature header is present but its value is not valid base64 at all, for a scheme requiring base64.",
+    "scheme": "hmac_sha256_base64",
+    "signature_header": "X-Webhook-Signature",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\",\"amount\":\"100.00\",\"currency\":\"ETB\"}",
+    "signature": "!!!not-valid-base64!!!",
+    "expected_result": "rejected",
+    "why": "Same reasoning as the hex case above, for the base64 scheme."
+  },
+  "scheme_none_always_verifies": {
+    "description": "webhook.verification.scheme: none (only meaningful for a provider with no signing mechanism at all, e.g. providers/mock) always treats the inbound body as verified, regardless of whether any signature-shaped header is present.",
+    "scheme": "none",
+    "received_body": "{\"event\":\"charge.success\",\"tx_ref\":\"INV-2291\",\"status\":\"success\"}",
+    "expected_result": "verified",
+    "why": "There is no secret and no signature_header to check for scheme: none (schema/manifest.v1.schema.json does not require either field in this case); this is a real gap for a provider with an actual signing mechanism the manifest simply hasn't captured, and spec/05-webhooks.md calls it out as a red flag on any non-mock provider, not a mechanism to lean on for a provider that does sign its callbacks."
   }
 }

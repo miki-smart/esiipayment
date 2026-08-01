@@ -107,8 +107,27 @@
             }
           },
           "description": "Named credential fields the runtime must collect from the integrator. Must be empty when shape is \"none\". Per Invariant I9, no literal secret value is ever written here."
+        },
+        "apply": {
+          "$ref": "#/$defs/authApply",
+          "description": "Where and how the resolved credential is attached to every outbound call this provider's flows make. Required unless shape is \"none\". See spec/03-manifest-dsl.md#auth."
+        },
+        "token": {
+          "$ref": "#/$defs/authToken",
+          "description": "The token-exchange mechanism behind the oauth2_client_credentials shape. Required if, and only if, shape is oauth2_client_credentials."
         }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "shape": { "const": "none" } } },
+          "then": {},
+          "else": { "required": ["apply"] }
+        },
+        {
+          "if": { "properties": { "shape": { "const": "oauth2_client_credentials" } } },
+          "then": { "required": ["token"] }
+        }
+      ]
     },
     "capabilities": {
       "type": "object",
@@ -275,6 +294,184 @@
       "type": "string",
       "description": "A literal value, or an interpolation ${namespace.path} / ${transform(namespace.path)} per spec/04-expression-language.md."
     },
+    "authApply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "oneOf": [
+        { "required": ["header"] },
+        { "required": ["query"] },
+        { "required": ["body"] }
+      ],
+      "properties": {
+        "header": { "type": "string", "minLength": 1, "description": "Name of the HTTP header the resolved credential is sent as." },
+        "query": { "type": "string", "minLength": 1, "description": "Name of the query-string parameter the resolved credential is sent as." },
+        "body": { "type": "string", "minLength": 1, "description": "Name of the request-body field the resolved credential is sent as." },
+        "value": {
+          "$ref": "#/$defs/interpolatableString",
+          "description": "The literal value applied to the header/query/body target named above, e.g. \"Bearer ${credentials.secret_key}\" or \"${auth.access_token}\"."
+        }
+      },
+      "description": "Exactly one of header/query/body names where the credential goes; every other provider call carries it there automatically, so no individual flows.*.steps.*.call needs to repeat it."
+    },
+    "authToken": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["call", "extract", "refresh_at"],
+      "properties": {
+        "call": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["method", "path"],
+          "properties": {
+            "method": { "type": "string", "enum": ["GET", "POST", "PUT", "PATCH", "DELETE"] },
+            "path": { "type": "string", "minLength": 1, "description": "Token-endpoint path, resolved against the active environment's base_url, same as any flows.*.steps.*.call.path." }
+          }
+        },
+        "body": {
+          "type": "object",
+          "description": "Request body for the token call. Provider-specific vocabulary, same additionalProperties exception as flows.*.steps.*.call.body."
+        },
+        "extract": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["access_token", "expires_in"],
+          "properties": {
+            "access_token": {
+              "type": "string",
+              "pattern": "^\\$(\\.[a-zA-Z_][a-zA-Z0-9_]*(\\[(\\*|[0-9]+)\\])?)+$",
+              "description": "Extraction path (spec/04-expression-language.md) evaluated against the token response, yielding the value available as ${auth.access_token}."
+            },
+            "expires_in": {
+              "type": "string",
+              "pattern": "^\\$(\\.[a-zA-Z_][a-zA-Z0-9_]*(\\[(\\*|[0-9]+)\\])?)+$",
+              "description": "Extraction path evaluated against the token response for the token's lifetime in seconds."
+            }
+          }
+        },
+        "refresh_at": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 1,
+          "description": "Refresh the token once this fraction of its expires_in lifetime has elapsed, e.g. 0.8. A runtime must perform this refresh single-flight: see spec/07-runtime-requirements.md#credential-handling."
+        }
+      },
+      "description": "How to exchange auth.fields credentials for a bearer token, for the oauth2_client_credentials shape. See spec/03-manifest-dsl.md#auth."
+    },
+    "interpolatableString": {
+      "type": "string",
+      "description": "A literal string, or a whole-value ${namespace.path} interpolation per spec/04-expression-language.md."
+    },
+    "interpolatableInt": {
+      "oneOf": [
+        { "type": "integer" },
+        { "type": "string" }
+      ],
+      "description": "A literal integer, or a whole-value ${namespace.path} interpolation that resolves to one, per spec/04-expression-language.md."
+    },
+    "moneyValue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minor_units", "currency"],
+      "properties": {
+        "minor_units": { "$ref": "#/$defs/interpolatableInt" },
+        "currency": { "$ref": "#/$defs/interpolatableString" }
+      },
+      "description": "A Money value per spec/01-domain-model.md#money: always an integer minor-unit count plus its ISO-4217 code, never a float."
+    },
+    "nextAction": {
+      "description": "The nine closed NextAction variants, each a typed object with its own required/optional fields. See spec/01-domain-model.md#nextaction-carries-its-own-payload.",
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": { "type": { "const": "None" } }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "url"],
+          "properties": {
+            "type": { "const": "RedirectToUrl" },
+            "url": { "$ref": "#/$defs/interpolatableString" },
+            "method": { "type": "string", "enum": ["GET", "POST"] }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "display_ref"],
+          "properties": {
+            "type": { "const": "AwaitDevicePush" },
+            "display_ref": { "$ref": "#/$defs/interpolatableString" },
+            "expires_at": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "length"],
+          "properties": {
+            "type": { "const": "SubmitOtp" },
+            "length": { "$ref": "#/$defs/interpolatableInt" },
+            "hint": { "$ref": "#/$defs/interpolatableString" },
+            "expires_at": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "payload"],
+          "properties": {
+            "type": { "const": "DisplayQr" },
+            "payload": { "$ref": "#/$defs/interpolatableString" },
+            "image_url": { "$ref": "#/$defs/interpolatableString" },
+            "expires_at": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "account_number", "institution", "reference", "amount"],
+          "properties": {
+            "type": { "const": "ShowTransferDetails" },
+            "account_number": { "$ref": "#/$defs/interpolatableString" },
+            "institution": { "$ref": "#/$defs/interpolatableString" },
+            "reference": { "$ref": "#/$defs/interpolatableString" },
+            "amount": { "$ref": "#/$defs/moneyValue" },
+            "account_name": { "$ref": "#/$defs/interpolatableString" },
+            "expires_at": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "code"],
+          "properties": {
+            "type": { "const": "DialUssd" },
+            "code": { "$ref": "#/$defs/interpolatableString" },
+            "expires_at": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type", "interval_ms"],
+          "properties": {
+            "type": { "const": "Poll" },
+            "interval_ms": { "$ref": "#/$defs/interpolatableInt" },
+            "not_before": { "$ref": "#/$defs/interpolatableString" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["type"],
+          "properties": { "type": { "const": "Capture" } }
+        }
+      ]
+    },
     "step": {
       "type": "object",
       "additionalProperties": false,
@@ -355,19 +552,8 @@
               "description": "The PaymentStatus this step produces."
             },
             "next_action": {
-              "type": "string",
-              "enum": [
-                "None",
-                "RedirectToUrl",
-                "AwaitDevicePush",
-                "SubmitOtp",
-                "DisplayQr",
-                "ShowTransferDetails",
-                "DialUssd",
-                "Poll",
-                "Capture"
-              ],
-              "description": "The NextAction this step produces."
+              "$ref": "#/$defs/nextAction",
+              "description": "The NextAction this step produces: a typed object ({type, ...fields}), not a bare label. See spec/01-domain-model.md#nextaction-carries-its-own-payload."
             },
             "state": {
               "type": "object",

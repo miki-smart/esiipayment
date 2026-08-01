@@ -85,6 +85,12 @@ func Extract(doc interface{}, path string) (value interface{}, ok bool) {
 		return nil, false
 	}
 	rest := path[1:]
+	if rest == "" {
+		// Bare "$" with no .field or [index] segment is not a valid path
+		// in this grammar (every real use case navigates to a specific
+		// field); see vectors/expressions/extraction.json.
+		return nil, false
+	}
 	cur := doc
 	for len(rest) > 0 {
 		switch rest[0] {
@@ -217,17 +223,27 @@ func formatMinorUnits(minorUnits int64, exponent int) string {
 		return strconv.FormatInt(minorUnits, 10)
 	}
 	neg := minorUnits < 0
-	n := minorUnits
+	// Magnitude via uint64, not a naive `-minorUnits`: negating
+	// math.MinInt64 directly overflows int64 (its magnitude, 2^63, has
+	// no positive int64 representation), silently producing a wrong
+	// result for exactly the boundary case
+	// vectors/money/conversions.json exists to catch. `-(n+1)+1` computes
+	// the same magnitude as `-n` for every other negative n, but never
+	// overflows: n+1 and its negation both stay within int64 range even
+	// when n is math.MinInt64.
+	var mag uint64
 	if neg {
-		n = -n
+		mag = uint64(-(minorUnits + 1)) + 1
+	} else {
+		mag = uint64(minorUnits)
 	}
-	div := int64(1)
+	div := uint64(1)
 	for i := 0; i < exponent; i++ {
 		div *= 10
 	}
-	whole := n / div
-	frac := n % div
-	fracStr := strconv.FormatInt(frac, 10)
+	whole := mag / div
+	frac := mag % div
+	fracStr := strconv.FormatUint(frac, 10)
 	for len(fracStr) < exponent {
 		fracStr = "0" + fracStr
 	}
