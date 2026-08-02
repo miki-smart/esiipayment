@@ -1,0 +1,195 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/manifest.v1.schema.json
+#
+# PROVISIONAL: see providers/telebirr/metadata.yaml. Endpoint paths, the
+# biz_content wrapper, field names (merch_order_id, total_amount,
+# trans_currency, toPayUrl), and the trade_status vocabulary
+# (PAY_SUCCESS/PAY_FAILED/PAY_CANCEL) are reconstructed from Telebirr's
+# public Fabric/H5 merchant-gateway developer-portal method names and
+# several independently-maintained open-source Telebirr client libraries,
+# not from current, verified Ethio Telecom documentation. The sandbox host
+# below is likewise recalled from publicly-shared sample integrations, not
+# independently reconfirmed.
+#
+# IMPORTANT SIMPLIFICATION: Telebirr's real Fabric gateway authenticates a
+# merchant application via a fabricAppId + fabricAppSecret token exchange,
+# and additionally requires every request past that exchange to be signed
+# (RSA-PSS / SHA256WithRSA over a canonicalized parameter string, with its
+# own nonce_str/timestamp/sign/sign_type fields). Neither the token
+# exchange nor the per-request signature is modeled here: the manifest DSL
+# has no canonicalization-before-signing transform (see
+# spec/03-manifest-dsl.md#native-providers, signal 2) for the latter, and
+# the reference validator's replay engine does not yet execute
+# auth.token/oauth2_client_credentials for the former (confirmed empirically
+# via `esiipayment replay`, not assumed). Auth below is simplified to a
+# single already-obtained bearer access token, matching how
+# providers/chapa/manifest.yaml, providers/arifpay/manifest.yaml, and
+# providers/santimpay/manifest.yaml all model their own (different)
+# real auth schemes as the closest supported CredentialShape rather than
+# an unsupported exact one. This manifest is not sufficient for a real
+# charge against Ethio Telecom's live systems as-is; see metadata.yaml's
+# verification notes.
+#
+# PAY_PENDING (used below in the sync flow) is NOT a confirmed real
+# trade_status value; it is invented, exactly as docs/tutorial.md's own
+# teaching example already discloses doing for the same reason, purely to
+# give sync a Processing+Poll path, since public sources did not surface a
+# genuine "still awaiting payer confirmation" status literal.
+
+provider: telebirr
+spec_version: "2.0"
+display_name: "Telebirr"
+country: ET
+currencies: [ETB]
+
+environments:
+  # UNVERIFIED: recalled from publicly-shared Fabric/H5 sample integrations
+  # (several independent open-source Telebirr client libraries reference
+  # this same sandbox host/port); production host not independently
+  # confirmed and may differ.
+  sandbox:
+    base_url: https://196.188.120.3:38443
+  production:
+    base_url: https://196.188.120.3:38443
+
+auth:
+  # UNVERIFIED simplification: modeled as a single, already-obtained bearer
+  # access token. Real Telebirr obtains this via a separate fabricAppId +
+  # fabricAppSecret exchange against /payment/v1/token (see the banner
+  # above); that exchange, and the per-request RSA-PSS signature Telebirr
+  # additionally requires, are not modeled in this manifest. The
+  # integrator/runtime is expected to obtain and refresh this token
+  # out-of-band and supply it here as a plain credential.
+  shape: api_key
+  fields:
+    - name: access_token
+      description: >-
+        Short-lived Telebirr Fabric application access token, obtained
+        out-of-band via Telebirr's fabricAppId/fabricAppSecret token
+        exchange (not modeled by this manifest). Sent as
+        "Authorization: Bearer <access_token>" on every request.
+  apply:
+    header: Authorization
+    value: "Bearer ${credentials.access_token}"
+
+capabilities:
+  operations: [collect, sync]
+  next_actions: [RedirectToUrl, Poll]
+  currencies:
+    ETB:
+      # UNVERIFIED placeholders, not values read from Telebirr documentation.
+      min_amount: 100
+      max_amount: 100000000
+
+operations:
+  collect:
+    entry_flow: collect
+  sync:
+    entry_flow: sync
+
+flows:
+  # Telebirr's H5 flow: preOrder returns a payment-page URL (toPayUrl) the
+  # payer is redirected to (opens the Telebirr app or an H5 page) to
+  # confirm and enter their PIN. The actual outcome is not known at
+  # preOrder time and is resolved later via sync (queryOrder), which is
+  # why merch_order_id is set to our own idempotency_key directly rather
+  # than a provider-assigned session id: no extra flow state is needed to
+  # address the same order later (contrast providers/arifpay/manifest.yaml,
+  # whose provider does assign its own session id that must be persisted).
+  collect:
+    steps:
+      initialize:
+        call:
+          method: POST
+          path: /payment/v1/merchant/preOrder
+          body:
+            biz_content:
+              notify_url: ${ctx.webhook_url}
+              appid: ${ctx.fabric_app_id}
+              merch_order_id: ${idempotency_key}
+              title: "Merchant order"
+              total_amount: ${amount_major(intent.amount)}
+              trans_currency: ${intent.currency}
+              timeout_express: "120m"
+        triggers: [return]
+        status_map:
+          # Top-level Fabric-gateway response envelope code, distinct from
+          # biz_content.trade_status (which does not exist yet at
+          # preOrder time: the trade has not started). A non-"SUCCESS"
+          # code is handled by the `errors` entry below, not here.
+          path: $.code
+          values:
+            SUCCESS: awaiting_redirect
+        emit: {}
+
+      awaiting_redirect:
+        emit:
+          status: RequiresAction
+          next_action:
+            type: RedirectToUrl
+            url: ${extract.biz_content.toPayUrl}
+
+  sync:
+    steps:
+      query:
+        call:
+          method: POST
+          path: /payment/v1/merchant/queryOrder
+          body:
+            biz_content:
+              appid: ${ctx.fabric_app_id}
+              merch_order_id: ${idempotency_key}
+        triggers: [return]
+        status_map:
+          # PAY_FAILED is deliberately absent here: it is caught by the
+          # `errors` entry below (evaluated before status_map, per
+          # spec/03-manifest-dsl.md#how-errors-interacts-with-status_map),
+          # the same way providers/chapa/manifest.yaml's sync flow catches
+          # its own verify-time decline via `errors` rather than a
+          # status_map value, so the terminal Failed result properly
+          # carries a failure_code/retry_class.
+          path: $.biz_content.trade_status
+          values:
+            PAY_SUCCESS: succeeded
+            PAY_CANCEL: canceled
+            PAY_PENDING: still_processing
+        emit: {}
+
+      succeeded:
+        emit: { status: Succeeded }
+      canceled:
+        emit: { status: Canceled }
+      still_processing:
+        emit:
+          status: Processing
+          next_action: { type: Poll, interval_ms: 5000 }
+
+errors:
+  # preOrder rejected the request itself (malformed biz_content, unknown
+  # appid, etc.) before any trade was created.
+  - match:
+      path: $.code
+      equals: FAIL
+    failure_code: InvalidRequest
+    retry_class: DoNotRetry
+
+  # queryOrder resolved the trade to a definite decline. UNVERIFIED
+  # whether Telebirr distinguishes decline reasons (insufficient balance
+  # vs. issuer decline vs. other) at this endpoint; modeled here as a
+  # single generic decline, mirroring providers/chapa/manifest.yaml's
+  # equivalent sync-time entry.
+  - match:
+      path: $.biz_content.trade_status
+      equals: PAY_FAILED
+    failure_code: AuthorizationDeclined
+    retry_class: DoNotRetry
+
+  # Bad/expired bearer access token.
+  - match:
+      http_status: 401
+    failure_code: AuthFailed
+    retry_class: DoNotRetry
+
+  - match:
+      transport: timeout
+    failure_code: ProviderTimeout
+    retry_class: ResolveFirst

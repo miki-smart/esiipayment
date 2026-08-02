@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"TELEBIRR-SYNC-POLL-0001","next_action":{"interval_ms":5000,"type":"Poll"},"operation":"sync","state":{},"status":"Processing"}

@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+
+provider: telebirr
+
+tier: community
+
+description: >-
+  Telebirr, Ethio Telecom's mobile money wallet, via its Fabric/H5 merchant
+  payment gateway (preOrder + queryOrder). Ethiopia's largest mobile-money
+  service by user base.
+
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    Endpoint paths (/payment/v1/merchant/preOrder, /payment/v1/merchant/queryOrder,
+    /payment/v1/token), the biz_content request/response wrapper, field
+    names (merch_order_id, total_amount, trans_currency, toPayUrl,
+    appid), and the trade_status vocabulary (PAY_SUCCESS, PAY_FAILED,
+    PAY_CANCEL) are reconstructed from Telebirr's public Fabric/H5
+    developer-portal method names and several independently-maintained
+    open-source Telebirr client libraries -- not confirmed first-hand
+    against Ethio Telecom's current merchant documentation or a live
+    sandbox account. PAY_PENDING is NOT a confirmed real trade_status
+    value: it is invented here, exactly as docs/tutorial.md's own teaching
+    example already discloses doing for the same field, purely so the
+    sync flow has a Processing+Poll path, since public sources did not
+    surface a genuine "still awaiting payer confirmation" status literal.
+    Auth is modeled as a simplified oauth2_client_credentials bearer-token
+    exchange (fabricAppId/fabricAppSecret -> access token). This
+    deliberately omits Telebirr's real requirement that every request past
+    the token exchange be additionally signed (RSA-PSS / SHA256WithRSA
+    over a canonicalized parameter string, with its own
+    nonce_str/timestamp/sign/sign_type fields): the manifest DSL has no
+    canonicalization-before-signing transform (see
+    spec/03-manifest-dsl.md#native-providers), so that signing step is not
+    modeled. A production integration would need a native implementation
+    of that signature step in each language runtime; this manifest alone
+    is not sufficient to place a real charge against Ethio Telecom's live
+    systems. The sandbox host (196.188.120.3:38443) is recalled from
+    publicly-shared Fabric/H5 sample integrations, not independently
+    reconfirmed. Knowledge of this provider came from public
+    developer-portal references and third-party open-source client
+    libraries, not from any employer's proprietary source (see the
+    clean-room norm in CONTRIBUTING.md).
+
+maintainers: []
+
+links:
+  website: https://www.ethiotelecom.et/telebirr/
+  docs: https://developer.ethiotelecom.et/
