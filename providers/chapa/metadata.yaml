@@ -12,18 +12,40 @@ verification:
   docs_verified_on: null
   verified_by: null
   notes: >-
-    This manifest was written from general recollection of Chapa's public
-    API (developer.chapa.co), not from a current, licensed read of its
-    documentation, and not from any employer's integration code; see the
-    clean-room note in CONTRIBUTING.md. Endpoint paths
-    (/v1/transaction/initialize, /v1/transaction/verify/{tx_ref}), exact
-    request/response field names, amount limits, and (with lowest
-    confidence) the webhook signature header name and scheme are all
-    marked inline in manifest.yaml as UNVERIFIED and must be confirmed
-    against current Chapa documentation and a real sandbox account before
-    this manifest is used for anything beyond reviewing the shape of the
-    approach. Do not treat any field in manifest.yaml as fact until this
-    status changes to "verified".
+    Originally written from general recollection of Chapa's public API
+    (developer.chapa.co), not from a current licensed read of its
+    documentation and not from any employer's integration code; see the
+    clean-room note in CONTRIBUTING.md.
+
+    PARTIALLY CONFIRMED against a live Chapa sandbox account on
+    2026-08-02. Confirmed correct by observation: the base URL
+    (https://api.chapa.co) and both endpoint paths
+    (/v1/transaction/initialize, /v1/transaction/verify/{tx_ref}); bearer
+    secret_key authentication and the CHASECK_TEST- test-key prefix; the
+    initialize request field names (amount, currency, email, first_name,
+    last_name, tx_ref, callback_url, return_url); the success response
+    shape ($.status == "success", $.data.checkout_url); the verify
+    response shape ($.data.status, observed "pending"); and HTTP 401 on a
+    bad API key.
+
+    Corrected as a result, both inline in manifest.yaml: (1) a validation
+    failure returns HTTP 400, not the HTTP 200 previously assumed, and
+    because Chapa's 401 body also carries top-level "status":"failed",
+    the old `$.status == failed` condition matched the auth-failure
+    response too — an errors[] ambiguity that would have mis-reported a
+    bad API key as InvalidRequest; (2) auth.shape widened from api_key to
+    triple_key, and webhook verification now reads a dedicated
+    webhook_secret rather than reusing secret_key, since Chapa issues a
+    separate webhook signing secret.
+
+    STILL UNVERIFIED, and the reason this stays "provisional": the
+    webhook signature header name and encoding (no real inbound callback
+    was observed — a sandbox initialize call does not produce one), the
+    per-currency amount limits (placeholders), and whether Chapa
+    distinguishes decline reasons at the verify endpoint. Verification was
+    done against the live sandbox API rather than a licensed read of
+    current documentation, and not signed off by a named maintainer, so
+    neither docs_verified_on nor verified_by is set.
 
 maintainers: []
 
