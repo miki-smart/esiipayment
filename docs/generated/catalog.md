@@ -9,6 +9,7 @@
 | Chapa (chapa) | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
 | Mock (Reference Implementation) (mock) | ET | official | ✅ verified | ETB, USD | collect, sync, payout, cancel, refund, webhook |
 | SantimPay (santimpay) | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
+| Telebirr (telebirr) | ET | community | ⚠️ provisional | ETB | collect, sync |
 
 # Capability Matrix
 
@@ -18,3 +19,4 @@
 | chapa | ✅ | ✅ | - | - | - | ✅ | Poll, RedirectToUrl |
 | mock | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | AwaitDevicePush, Capture, DialUssd, DisplayQr, None, Poll, RedirectToUrl, ShowTransferDetails, SubmitOtp |
 | santimpay | ✅ | ✅ | - | - | - | ✅ | Poll, RedirectToUrl |
+| telebirr | ✅ | ✅ | - | - | - | - | Poll, RedirectToUrl |

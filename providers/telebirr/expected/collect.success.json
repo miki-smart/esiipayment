@@ -1,0 +1,1 @@
+{"failure":null,"idempotency_key":"TELEBIRR-COLLECT-SUCCESS-0001","next_action":{"type":"RedirectToUrl","url":"https://h5.telebirr.et/payment/pay?prepayId=TB2026011509300001"},"operation":"collect","state":{},"status":"RequiresAction"}

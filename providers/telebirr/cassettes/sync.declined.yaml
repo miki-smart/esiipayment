@@ -1,0 +1,29 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
+# see the PROVISIONAL banner in ../manifest.yaml. Exercises the
+# `path: $.biz_content.trade_status, equals: PAY_FAILED` entry in
+# manifest.yaml's errors list (mirroring providers/chapa/manifest.yaml's
+# equivalent sync-time decline entry), not a status_map value.
+name: sync.declined
+operation: sync
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: []
+  idempotency_key: "TELEBIRR-SYNC-DECLINED-0001"
+environment: sandbox
+ctx:
+  fabric_app_id: "fixture-merchant-app-id"
+credentials:
+  access_token: "fixture-not-a-real-token"
+intent: {}
+interactions:
+  - request:
+      method: POST
+      path: /payment/v1/merchant/queryOrder
+      headers: { Authorization: "Bearer fixture-not-a-real-token" }
+      body: '{"biz_content":{"appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-SYNC-DECLINED-0001"}}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"merch_order_id":"TELEBIRR-SYNC-DECLINED-0001","trade_status":"PAY_FAILED"}}'

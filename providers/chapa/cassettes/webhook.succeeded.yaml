@@ -4,8 +4,13 @@
 # banner in ../manifest.yaml, especially regarding the signature header
 # name and scheme. The signature below is a REAL HMAC-SHA256 hex digest,
 # computed over the exact raw_body bytes using the fixture secret in
-# `credentials`, not a real Chapa signature, since credentials.secret_key
+# `credentials`, not a real Chapa signature, since credentials.webhook_secret
 # here is a fixture, not a live key.
+#
+# The fixture's VALUE is unchanged from when this key was named secret_key
+# (the manifest now correctly reads webhook_secret instead), so the
+# precomputed digest below still verifies: HMAC depends on the secret's
+# value, not on which manifest field name carries it.
 name: webhook.succeeded
 operation: webhook
 seed:
@@ -13,7 +18,7 @@ seed:
   uuid: []
   idempotency_key: "CHAPA-WEBHOOK-SUCCEEDED-0001"
 credentials:
-  secret_key: "chapa_test_fixture_secret_5f8a3b2c"
+  webhook_secret: "chapa_test_fixture_secret_5f8a3b2c"
 inbound_webhook:
   headers:
     content-type: application/json

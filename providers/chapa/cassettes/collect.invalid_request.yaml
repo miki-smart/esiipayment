@@ -1,8 +1,10 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction of an initialize-time validation failure;
-# see the PROVISIONAL banner in ../manifest.yaml. Exercises the
-# `path: $.status, equals: failed` entry in manifest.yaml's errors list.
+# An initialize-time validation failure. The response below is REAL,
+# captured from Chapa's live sandbox on 2026-08-02 by posting an
+# unroutable email address; it replaces an earlier reconstruction that
+# wrongly assumed HTTP 200. Exercises the `http_status: 400` entry in
+# manifest.yaml's errors list.
 name: collect.invalid_request
 operation: collect
 seed:
@@ -28,6 +30,6 @@ interactions:
       headers: { Authorization: "Bearer CHASECK_TEST-fixture-not-a-real-key" }
       body: '{"amount":"150.00","currency":"ETB","email":"not-an-email","first_name":"Abebe","last_name":"Kebede","tx_ref":"CHAPA-COLLECT-INVALID-0001","callback_url":"https://merchant.example/webhooks/chapa","return_url":"https://merchant.example/return/chapa"}'
     response:
-      status: 200
+      status: 400
       headers: { content-type: application/json }
-      body: '{"message":"Validation error: email is invalid","status":"failed"}'
+      body: '{"message":{"email":["validation.email"]},"status":"failed","data":null}'

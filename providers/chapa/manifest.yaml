@@ -33,20 +33,41 @@ environments:
 
 # --8<-- [start:auth-section]
 auth:
-  # UNVERIFIED shape: modeled as a single bearer secret key, which matches
-  # the hosted-checkout initialize/verify flow as recalled. Chapa may also
-  # expose a separate public key for other integration modes (e.g.
-  # client-side encryption for direct card/mobile-money charges); if so,
-  # this shape should become key_pair or triple_key instead. Confirm before
-  # relying on this.
-  shape: api_key
+  # VERIFIED (2026-08-02, live sandbox): bearer secret_key on
+  # /v1/transaction/initialize and /v1/transaction/verify is correct, and
+  # the CHASECK_TEST- test-key prefix is real.
+  #
+  # Shape widened from api_key to triple_key: Chapa issues four distinct
+  # credential values (public key, secret key, encryption key, and a
+  # separate webhook signing secret), not one. triple_key is the closest
+  # member of the closed CredentialShape set
+  # (spec/01-domain-model.md#credentialshape) — the spec requires picking
+  # the nearest existing shape rather than inventing a four-value one.
+  # Only secret_key reaches an outbound request (via apply below);
+  # webhook_secret is used solely by the webhook section, and
+  # public_key/encryption_key exist for direct card/mobile-money charge
+  # modes this manifest does not implement.
+  shape: triple_key
   fields:
     - name: secret_key
       description: >-
         Secret key from the Chapa merchant dashboard. Test keys are
         prefixed CHASECK_TEST-, live keys CHASECK-. Sent as
-        "Authorization: Bearer <secret_key>" on every request. (Prefix
-        format as recalled; confirm against current dashboard.)
+        "Authorization: Bearer <secret_key>" on every request.
+    - name: webhook_secret
+      description: >-
+        The webhook signing secret, set separately in the Chapa dashboard's
+        webhook settings. This is NOT the same value as secret_key; using
+        secret_key to verify callbacks will reject every legitimate webhook.
+    - name: public_key
+      description: >-
+        Public key (CHAPUBK_...), used by client-side/inline integration
+        modes this manifest does not implement. Collected for completeness.
+    - name: encryption_key
+      description: >-
+        Encryption key, used to encrypt card fields when accepting card
+        payments directly — an integration mode this manifest does not
+        implement. Collected for completeness.
   apply:
     header: Authorization
     value: "Bearer ${credentials.secret_key}"
@@ -153,12 +174,25 @@ flows:
 
 # --8<-- [start:errors-section]
 errors:
-  # Initialize-time validation failure (missing/malformed field). Chapa is
-  # recalled to return a 200 with a top-level "status": "failed" and a
-  # message in this case, rather than a 4xx; UNVERIFIED.
+  # Initialize-time validation failure (missing/malformed field).
+  #
+  # CORRECTED 2026-08-02 against the live sandbox. This entry previously
+  # matched `path: $.status, equals: failed`, on the recollection that
+  # Chapa returns 200 with a top-level failed status for validation
+  # errors. Both halves of that were wrong, and the second one was a real
+  # bug:
+  #   1. A validation failure is HTTP 400, not 200. Observed:
+  #      {"message":{"email":["validation.email"]},"status":"failed","data":null}
+  #   2. Chapa's 401 body ALSO carries top-level "status":"failed", so the
+  #      old condition matched the auth-failure response too — making this
+  #      entry and the `http_status: 401` entry below both true of one
+  #      response. Per spec/03-manifest-dsl.md that is an authoring
+  #      ambiguity, explicitly NOT something to resolve by entry order, and
+  #      a runtime taking first-match-wins would have reported a bad API
+  #      key as InvalidRequest instead of AuthFailed.
+  # Matching on http_status 400 vs 401 keeps the two mutually exclusive.
   - match:
-      path: $.status
-      equals: failed
+      http_status: 400
     failure_code: InvalidRequest
     retry_class: DoNotRetry
 
@@ -172,10 +206,10 @@ errors:
     failure_code: AuthorizationDeclined
     retry_class: DoNotRetry
 
-  # Bad/expired secret key. UNVERIFIED whether Chapa returns a bare 401 or
-  # a 200 with a failure body for this case; modeled on HTTP status since
-  # that is the more common REST convention and is what most payment APIs
-  # use for authentication failures specifically.
+  # Bad/expired secret key. VERIFIED 2026-08-02 against the live sandbox:
+  # Chapa does return a bare 401 for this. Observed body:
+  # {"message":"Invalid API Key or the business can't accept payments at
+  # the moment...","status":"failed","data":null}
   - match:
       http_status: 401
     failure_code: AuthFailed
@@ -190,13 +224,23 @@ errors:
 # --8<-- [start:webhook-section]
 webhook:
   verification:
-    # UNVERIFIED scheme and header name. Recalled as an HMAC-SHA256 hex
-    # signature in a "Chapa-Signature" header computed over the raw
-    # webhook body using the secret key, but this is exactly the kind of
-    # detail that changes between provider doc revisions and must be
-    # confirmed, not assumed, before relying on it for real verification.
+    # CORRECTED 2026-08-02: `secret` now references the dedicated
+    # webhook_secret credential, not secret_key. Chapa issues a separate
+    # webhook signing secret in its dashboard's webhook settings; verifying
+    # against the API secret key would have rejected every legitimate
+    # callback. (Evidenced by a real merchant configuration carrying
+    # distinct CHAPA_SECRET_KEY and CHAPA_WEBHOOK_SECRET values.)
+    #
+    # STILL UNVERIFIED: the scheme and header name below. HMAC-SHA256 hex
+    # over the raw body is consistent with Chapa's published CLI having a
+    # `webhook verifywebhook --usekey` signature check, but the exact
+    # header name ("Chapa-Signature" vs "x-chapa-signature" — Chapa is
+    # reported to send both) and the hex-vs-base64 encoding were NOT
+    # confirmed first-hand: doing so needs a real inbound callback, which
+    # a sandbox initialize call alone does not produce. Confirm before
+    # relying on this in production.
     scheme: hmac_sha256_hex
     signature_header: Chapa-Signature
-    secret: ${credentials.secret_key}
+    secret: ${credentials.webhook_secret}
   body_format: json
 # --8<-- [end:webhook-section]
