@@ -43,9 +43,17 @@ esiipayment conformance-integrator [repo-root]
 ## Building
 
 ```
-go mod tidy   # populates go.sum, deliberately not committed, see below
 go build ./cmd/esiipayment
 ```
+
+`go.sum` is committed, so this needs no `go mod tidy` first and every
+build — yours, CI's, and the container image's — verifies the dependency
+tree against the same pinned checksums. It was gitignored and regenerated
+on each runner until 2026-08-04, which meant nothing ever pinned what the
+module proxy served to the tool that gates every provider manifest in this
+repository. If you change a dependency, run `go mod tidy` and commit the
+resulting `go.mod`/`go.sum`; validate.yml's `test` job fails the build if
+they are not already tidy.
 
 Or, without a local Go toolchain, via the container image:
 

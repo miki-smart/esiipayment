@@ -5,10 +5,12 @@
 
 FROM golang:1.22-bookworm AS build
 WORKDIR /src
-COPY go.mod ./
+COPY go.mod go.sum ./
 COPY internal ./internal
 COPY cmd ./cmd
-RUN go mod tidy
+# No `go mod tidy`: go.sum is committed, so the build verifies its
+# dependencies against pinned checksums rather than trusting whatever the
+# module proxy serves at image-build time.
 RUN CGO_ENABLED=0 go build -o /out/esiipayment ./cmd/esiipayment
 
 FROM gcr.io/distroless/static-debian12
