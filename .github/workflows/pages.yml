@@ -12,6 +12,15 @@ name: pages
 on:
   push:
     branches: [main]
+  # docs.yml commits the regenerated docs/generated/ back to main using
+  # GITHUB_TOKEN, and GitHub deliberately does not fire workflows for
+  # GITHUB_TOKEN pushes — so the `push` trigger above never sees that
+  # commit and the published site stayed one commit stale until the next
+  # human push. Rebuilding when docs.yml finishes closes that gap.
+  workflow_run:
+    workflows: [docs]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -25,6 +34,11 @@ concurrency:
 
 jobs:
   build:
+    # Skip the workflow_run rebuild when docs.yml itself failed — there is
+    # nothing new to publish and the run would deploy whatever main last
+    # held. push/workflow_dispatch have no workflow_run context, so the
+    # first clause lets them through.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

@@ -17,15 +17,20 @@ name: conformance-matrix
 #      named e.g. "conformance/<sdk>/<provider>", so branch protection on
 #      this repo can require it.
 #
-# NOTE: as of writing, esiipayment-dotnet/esiipayment-python/esiipayment-node/
-# esiipayment-go/esiipayment-php do not yet exist as real repositories with that
-# receiving workflow implemented — this file defines the contract this
-# repo commits to on the dispatch side, ready for each SDK repo to
-# implement the matching receiver once it exists. Until then, dispatches
-# below will fail with "repository not found" for any sdk repo that
-# hasn't been created yet; that failure should not block merges on this
-# repo until at least one real SDK repo implements the receiver (adjust
-# branch protection accordingly).
+# NOTE: miki-smart/esiipayment-dotnet exists but has not yet implemented
+# the receiving workflow; esiipayment-python/esiipayment-node/esiipayment-go/
+# esiipayment-php do not exist as repositories at all. This file defines
+# the contract this repo commits to on the dispatch side, ready for each
+# SDK repo to implement the matching receiver. Until then, dispatches
+# below fail with "repository not found" for any sdk repo that hasn't been
+# created yet; that failure should not block merges on this repo until at
+# least one real SDK repo implements the receiver (adjust branch
+# protection accordingly).
+#
+# The owner below is miki-smart, matching where every repo in this project
+# actually lives (miki-smart/esiipayment, miki-smart/esiipayment-dotnet).
+# It read "esiipayment/" until 2026-08-04, which made every dispatch 404
+# regardless of whether the target repo existed.
 
 on:
   push:
@@ -46,7 +51,12 @@ jobs:
           fetch-depth: 2
       - id: diff
         run: |
-          CHANGED=$(git diff --name-only HEAD~1 HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_template$' || true)
+          # grep -v '^_' (not '^_template$'): every "_"-prefixed directory
+          # is a skeleton with intentional TODOs — _template and, since the
+          # native-provider work, _template-native — and must never be
+          # dispatched to an SDK as if it were a shippable provider. Same
+          # convention validate.yml and esiipayment lint/catalog apply.
+          CHANGED=$(git diff --name-only --diff-filter=d HEAD~1 HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_' || true)
           JSON=$(printf '%s\n' "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "providers=$JSON" >> "$GITHUB_OUTPUT"
 
@@ -69,7 +79,7 @@ jobs:
         uses: peter-evans/repository-dispatch@v3
         with:
           token: ${{ secrets.CONFORMANCE_DISPATCH_TOKEN }}
-          repository: esiipayment/${{ matrix.sdk }}
+          repository: miki-smart/${{ matrix.sdk }}
           event-type: esiipayment-conformance-check
           client-payload: |-
             {"provider": "${{ matrix.provider }}", "sha": "${{ github.sha }}"}

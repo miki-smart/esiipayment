@@ -39,7 +39,10 @@ jobs:
           # Any "_"-prefixed directory is a skeleton with intentional
           # TODOs (_template, _template-native) and is not expected to
           # validate — same convention esiipayment lint/catalog apply.
-          CHANGED=$(git diff --name-only "$BASE" HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_' || true)
+          # --diff-filter=d drops deletions: a PR that removes a provider
+          # outright would otherwise put its name in the matrix and fail on
+          # `esiipayment validate providers/<gone>`.
+          CHANGED=$(git diff --name-only --diff-filter=d "$BASE" HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_' || true)
           JSON=$(printf '%s\n' "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "providers=$JSON" >> "$GITHUB_OUTPUT"
 
@@ -56,12 +59,10 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache-dependency-path: tools/validator/go.mod
+          cache-dependency-path: tools/validator/go.sum
       - name: build esiipayment
         working-directory: tools/validator
-        run: |
-          go mod tidy
-          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+        run: go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
       - name: esiipayment validate
         run: esiipayment validate providers/${{ matrix.provider }}
       - name: esiipayment replay --assert-golden
@@ -74,11 +75,35 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache-dependency-path: tools/validator/go.mod
+          cache-dependency-path: tools/validator/go.sum
       - name: build esiipayment
+        working-directory: tools/validator
+        run: go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+      - name: esiipayment lint
+        run: esiipayment lint .
+
+  # The validator is the reference implementation every provider PR is
+  # gated on, so its own tests have to run somewhere. They did not before:
+  # no workflow in this repo invoked `go test`.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+          cache-dependency-path: tools/validator/go.sum
+      - name: go test
+        working-directory: tools/validator
+        run: go test ./...
+      # Catches the drift `go mod tidy` in CI used to hide: if go.mod or
+      # go.sum is incomplete or stale, this fails here rather than being
+      # silently rewritten on the runner.
+      - name: go.mod / go.sum are tidy
         working-directory: tools/validator
         run: |
           go mod tidy
-          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
-      - name: esiipayment lint
-        run: esiipayment lint .
+          git diff --exit-code -- go.mod go.sum || {
+            echo "::error::go.mod/go.sum are not tidy. Run 'go mod tidy' in tools/validator and commit the result."
+            exit 1
+          }

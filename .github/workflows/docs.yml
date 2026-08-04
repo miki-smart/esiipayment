@@ -28,6 +28,13 @@ on:
       - "docs/**"
   workflow_dispatch:
 
+# The "commit regenerated docs" step below pushes to main. Without this,
+# the job depends on the repository's default GITHUB_TOKEN permission,
+# which is read-only in any org that has tightened the default — the push
+# then fails at the end of an otherwise green run.
+permissions:
+  contents: write
+
 jobs:
   generate:
     runs-on: ubuntu-latest
@@ -37,13 +44,11 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache-dependency-path: tools/validator/go.mod
+          cache-dependency-path: tools/validator/go.sum
 
       - name: build esiipayment
         working-directory: tools/validator
-        run: |
-          go mod tidy
-          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+        run: go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
 
       - name: generate provider catalog
         run: |

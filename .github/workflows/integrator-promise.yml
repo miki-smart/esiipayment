@@ -35,11 +35,9 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.22"
-          cache-dependency-path: tools/validator/go.mod
+          cache-dependency-path: tools/validator/go.sum
       - name: build esiipayment
         working-directory: tools/validator
-        run: |
-          go mod tidy
-          go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
+        run: go build -o /usr/local/bin/esiipayment ./cmd/esiipayment
       - name: esiipayment conformance-integrator
         run: esiipayment conformance-integrator .
