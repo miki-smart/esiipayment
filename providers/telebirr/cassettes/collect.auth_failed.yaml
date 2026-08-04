@@ -1,21 +1,30 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction of a bad/expired bearer token; see the
-# PROVISIONAL banner in ../manifest.yaml. Exercises the `http_status: 401`
-# entry, not a body-content match: the body deliberately carries no "code"
-# field so it cannot also match the `collect.invalid_request` entry.
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# A 401 on the payment call, not on the token exchange: the runtime was
+# holding a token it believed valid and Telebirr rejected it. Only one
+# signature is produced here — the H5 checkout URL is never built, because
+# there is no prepay_id to build it from.
 name: collect.auth_failed
 operation: collect
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-COLLECT-AUTH-0001"
+  uuid: ["9a1d5c37-8e42-4b60-9f13-7c2e5a8b4d61"]
+  idempotency_key: "TELEBIRRCOLLECTAUTH0001"
 environment: sandbox
 ctx:
   webhook_url: "https://merchant.example/webhooks/telebirr"
-  fabric_app_id: "fixture-merchant-app-id"
+  return_url: "https://merchant.example/thanks"
+  web_base_url: "https://developerportal.ethiotelebirr.et:38443/payment/web/paygate?"
 credentials:
-  access_token: "expired-fixture-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent:
   amount: 15000
   currency: ETB
@@ -23,9 +32,11 @@ interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/preOrder
-      headers: { Authorization: "Bearer expired-fixture-token" }
-      body: '{"biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-COLLECT-AUTH-0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "expired-fixture-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"9a1d5c378e424b609f137c2e5a8b4d61","method":"payment.preorder","version":"1.0","biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","trade_type":"Checkout","appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRCOLLECTAUTH0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m","business_type":"BuyGoods","payee_identifier":"999999","payee_identifier_type":"04","payee_type":"5000","redirect_url":"https://merchant.example/thanks","callback_info":"esiipayment"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 401
       headers: { content-type: application/json }
-      body: '{"message":"Unauthorized"}'
+      body: '{"result":"FAIL","code":"401","msg":"Unauthorized"}'

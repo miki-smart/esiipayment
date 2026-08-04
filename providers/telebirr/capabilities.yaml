@@ -1,0 +1,87 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/capabilities.v1.schema.json
+#
+# WHY NATIVE, NOT A MANIFEST: Telebirr's Fabric gateway needs two things the
+# manifest DSL structurally cannot express, either one of which is decisive.
+#
+#   1. Every request past the fabricAppId/appSecret token exchange carries a
+#      signature over a canonicalized parameter string: biz_content flattened
+#      one level into the top-level parameters, non-string values dropped,
+#      keys sorted, joined as k=v pairs with "&", signed RSASSA-PSS with
+#      SHA-256 (the sign_type field reads "SHA256WithRSA", but the algorithm
+#      in use is PSS). That is canonicalisation before signing — signal 2 of
+#      spec/03-manifest-dsl.md#the-five-signals — and the closed transform set
+#      has no general canonicalisation transform, deliberately.
+#
+#   2. The payer's checkout URL is not returned by the gateway. preOrder
+#      answers with a `prepay_id` only; the merchant then builds the H5 URL
+#      itself from appid/merch_code/nonce_str/prepay_id/timestamp and signs
+#      *that* separately, as a second signature over a different parameter
+#      set. A manifest emits next_action values by interpolating a response;
+#      it cannot compute and sign a URL. No DSL short of a programming
+#      language expresses this.
+#
+# See docs/tutorials/add-a-provider/00-which-kind.md for the decision, and
+# metadata.yaml for what is verified and what still is not. Endpoint paths,
+# the biz_content field set and the response envelope live in each language
+# runtime's implementation rather than here, because a native provider
+# declares only what it can do, never how a runtime talks to it (for .NET,
+# Esiipayment.Providers.Telebirr).
+
+provider: telebirr
+spec_version: "2.0"
+implementation: native
+display_name: "Telebirr"
+country: ET
+currencies: [ETB]
+
+auth:
+  # NEAREST-FIT SHAPE, not an exact one. Telebirr actually issues five
+  # distinct values (below), and no member of the closed CredentialShape
+  # vocabulary describes "application credentials exchanged for a bearer
+  # token, plus a separate merchant identity, plus a signing key".
+  # triple_key is the closest available; providers/chapa, providers/arifpay
+  # and providers/santimpay each make the same nearest-fit choice for their
+  # own schemes. A sixth CredentialShape member would be a spec RFC (see
+  # GOVERNANCE.md), not a manifest-local invention — and shape exists only
+  # to drive generic credential-input-form generation, so the cost of the
+  # approximation is cosmetic. The field list below is the normative part.
+  #
+  # A native implementation applies these in code: there is no auth.apply or
+  # auth.token here, and no value is ever written into this file
+  # (Invariant I9).
+  shape: triple_key
+  fields:
+    - name: fabric_app_id
+      description: >-
+        Fabric application id (fabricAppId). Sent as the "X-APP-Key" header
+        on every call, including the token exchange itself. Distinct from
+        merchant_app_id — do not interchange them.
+    - name: app_secret
+      description: >-
+        Fabric application secret. Exchanged for a short-lived bearer token
+        (sent as the sole "appSecret" body field of the token call); never
+        sent on a payment request.
+    - name: merchant_app_id
+      description: >-
+        Merchant application id, sent as the "appid" field inside
+        biz_content and included in the signed parameter string. A different
+        value from fabric_app_id, despite both being "app ids".
+    - name: merchant_code
+      description: >-
+        Merchant short code, sent as "merch_code" and again as
+        "payee_identifier". Identifies which merchant account is collecting.
+    - name: merchant_private_key
+      description: >-
+        Merchant RSA private key, whose public half is registered with Ethio
+        Telecom. PEM or base64 DER (PKCS#8). Signs the canonicalized
+        parameter string of every request, and separately signs the H5
+        checkout URL handed to the payer. Never transmitted.
+
+capabilities:
+  operations: [collect, sync]
+  next_actions: [RedirectToUrl, Poll]
+  currencies:
+    ETB:
+      # UNVERIFIED placeholders, not values read from Telebirr documentation.
+      min_amount: 100
+      max_amount: 100000000

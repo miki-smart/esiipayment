@@ -1,29 +1,39 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
-# see the PROVISIONAL banner in ../manifest.yaml. Exercises the
-# `path: $.biz_content.trade_status, equals: PAY_FAILED` entry in
-# manifest.yaml's errors list (mirroring providers/chapa/manifest.yaml's
-# equivalent sync-time decline entry), not a status_map value.
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# A definite sync-time decline. Note the envelope says SUCCESS — the query
+# itself worked — while the trade resolved to a failure, so a runtime must
+# classify on the inner order_status, not the envelope, and must carry a
+# failure_code/retry_class rather than a bare terminal status.
+#
+# UNVERIFIED status literal: PAY_FAILED is not corroborated against a working
+# integration (only PAY_SUCCESS is).
 name: sync.declined
 operation: sync
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-SYNC-DECLINED-0001"
+  uuid: ["6d2b9f48-1a37-4e85-9b60-4f8c3a7e2d51"]
+  idempotency_key: "TELEBIRRSYNCDECLINED0001"
 environment: sandbox
-ctx:
-  fabric_app_id: "fixture-merchant-app-id"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent: {}
 interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/queryOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-SYNC-DECLINED-0001"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"6d2b9f481a374e859b604f8c3a7e2d51","method":"payment.queryorder","version":"1.0","biz_content":{"appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRSYNCDECLINED0001"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"merch_order_id":"TELEBIRR-SYNC-DECLINED-0001","trade_status":"PAY_FAILED"}}'
+      body: '{"result":"SUCCESS","code":"0","msg":"ok","biz_content":{"merch_order_id":"TELEBIRRSYNCDECLINED0001","order_status":"PAY_FAILED"}}'

@@ -36,7 +36,10 @@ jobs:
       - id: diff
         run: |
           BASE="${{ github.event.pull_request.base.sha || 'HEAD~1' }}"
-          CHANGED=$(git diff --name-only "$BASE" HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_template$' || true)
+          # Any "_"-prefixed directory is a skeleton with intentional
+          # TODOs (_template, _template-native) and is not expected to
+          # validate — same convention esiipayment lint/catalog apply.
+          CHANGED=$(git diff --name-only "$BASE" HEAD -- providers/ | awk -F/ '{print $2}' | sort -u | grep -v '^_' || true)
           JSON=$(printf '%s\n' "$CHANGED" | jq -R -s -c 'split("\n") | map(select(length > 0))')
           echo "providers=$JSON" >> "$GITHUB_OUTPUT"
 

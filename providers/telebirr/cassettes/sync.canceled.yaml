@@ -1,28 +1,35 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
-# see the PROVISIONAL banner in ../manifest.yaml. trade_status: PAY_CANCEL
-# is a confirmed real Telebirr status value (see docs/tutorial.md), unlike
-# PAY_PENDING below.
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# UNVERIFIED status literal: PAY_CANCEL is not corroborated against a working
+# integration (only PAY_SUCCESS is). It is modelled here so the provider has a
+# Canceled path at all; treat the literal as provisional.
 name: sync.canceled
 operation: sync
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-SYNC-CANCELED-0001"
+  uuid: ["8f3a1e75-2d64-4b98-9c07-5a1f8e3b6d24"]
+  idempotency_key: "TELEBIRRSYNCCANCELED0001"
 environment: sandbox
-ctx:
-  fabric_app_id: "fixture-merchant-app-id"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent: {}
 interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/queryOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-SYNC-CANCELED-0001"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"8f3a1e752d644b989c075a1f8e3b6d24","method":"payment.queryorder","version":"1.0","biz_content":{"appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRSYNCCANCELED0001"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"merch_order_id":"TELEBIRR-SYNC-CANCELED-0001","trade_status":"PAY_CANCEL"}}'
+      body: '{"result":"SUCCESS","code":"0","msg":"ok","biz_content":{"merch_order_id":"TELEBIRRSYNCCANCELED0001","order_status":"PAY_CANCEL"}}'

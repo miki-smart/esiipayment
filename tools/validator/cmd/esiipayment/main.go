@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/catalog"
 	"github.com/esiipayment/esiipayment-spec/tools/validator/internal/checks"
@@ -219,7 +220,12 @@ func runConformanceIntegrator(args []string) error {
 	failed := false
 	checkedAny := false
 	for _, e := range entries {
-		if !e.IsDir() || e.Name() == "_template" {
+		// Any "_"-prefixed directory is a skeleton with intentional
+		// TODOs (_template, _template-native), not a provider — matching
+		// what checks.checkAllProviders and catalog.Generate skip. This
+		// has to come before the native check below, or a native
+		// skeleton reports itself as a skipped provider.
+		if !e.IsDir() || strings.HasPrefix(e.Name(), "_") {
 			continue
 		}
 		dir := filepath.Join(providersDir, e.Name())

@@ -573,9 +573,18 @@ means someone confirmed it against current official documentation.
 
 Be honest here. Someone will build a real shop on your manifest. Writing
 `verified` because it seems probably right is how a shop loses money.
-Most manifests in this repository are `provisional` and say so plainly —
-including the real Telebirr one, which openly documents that it omits a
-signing step it can't express.
+Most providers in this repository are `provisional` and say so plainly.
+The real Telebirr one is worth reading for how narrow an honest claim can
+be: its wire format has been corrected against a working integration, and
+it is *still* `provisional`, because nobody has yet run this
+repository's version of it against a live endpoint. "The format is right"
+and "our implementation of it is right" are different claims, and it only
+makes the first. (Telebirr is also this repository's one *native*
+provider: the signing step it needs is something the manifest DSL
+deliberately cannot express. See
+[Step 0 of the provider tutorial](tutorials/add-a-provider/00-which-kind.md)
+for that fork in the road; everything in this part assumes the ordinary
+manifest case.)
 
 ### Step 10 — Record cassettes
 

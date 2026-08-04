@@ -79,6 +79,7 @@ nav:
           - The Reference Integrator: docs/examples/integrator/reference-integrator.md
       - Add a Provider:
           - Overview: docs/tutorials/add-a-provider/index.md
+          - 0. Which Kind of Provider: docs/tutorials/add-a-provider/00-which-kind.md
           - 1. What a Manifest Is: docs/tutorials/add-a-provider/01-what-a-manifest-is.md
           - 2. Editor Setup: docs/tutorials/add-a-provider/02-editor-setup.md
           - 3. Copy the Template: docs/tutorials/add-a-provider/03-copy-the-template.md
@@ -90,6 +91,7 @@ nav:
           - 9. Clean Room and DCO: docs/tutorials/add-a-provider/09-clean-room-and-dco.md
           - 10. Opening the PR: docs/tutorials/add-a-provider/10-opening-the-pr.md
           - 11. Verification and Tiers: docs/tutorials/add-a-provider/11-verification-and-tiers.md
+          - 12. The Native Path: docs/tutorials/add-a-provider/12-the-native-path.md
       - Modify the Spec:
           - Overview: docs/tutorials/modify-the-spec/index.md
           - 1. What's Frozen: docs/tutorials/modify-the-spec/01-whats-frozen.md

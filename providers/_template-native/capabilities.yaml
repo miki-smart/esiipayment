@@ -1,0 +1,85 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/capabilities.v1.schema.json
+#
+# TEMPLATE for a NATIVE provider. Copy this whole directory to
+# providers/<your-provider>/ and fill in every TODO. Like
+# providers/_template/, this skeleton is deliberately unfilled and is
+# excluded from validation and the generated catalog (any directory whose
+# name starts with "_" is).
+#
+# ---------------------------------------------------------------------
+# STOP: are you sure you need this template?
+# ---------------------------------------------------------------------
+# Almost every provider should be a manifest.yaml
+# (providers/_template/manifest.yaml), because a manifest is data every
+# runtime already knows how to execute: writing one supports your
+# provider in .NET, Python, JavaScript and every future runtime at once,
+# with no code review in any of them. A native provider is the opposite
+# trade: correct, but reimplemented and re-verified once per language,
+# forever.
+#
+# Use this template only if your provider needs at least one of the five
+# signals in spec/03-manifest-dsl.md#the-five-signals:
+#
+#   1. Branching on a parsed intermediate value.
+#   2. Canonicalisation before signing.
+#   3. Session or cookie state.
+#   4. A non-HTTP channel (SOAP, gRPC, a vendor SDK, USSD).
+#   5. Status vocabularies needing more than equality comparison.
+#
+# If none of those apply, an awkward-but-correct manifest beats a native
+# implementation every time. See
+# docs/tutorials/add-a-provider/00-which-kind.md, which walks the
+# decision, and providers/telebirr/ for a real, filled-in example of this
+# template (signal 2: it must sign a canonicalized parameter string).
+#
+# This file carries only what your provider CAN DO. It deliberately has
+# no environments/flows/errors/webhook section: those describe how a
+# runtime talks to the provider, which for a native provider is code in
+# each language SDK's own repository, never data here. Adding any of
+# those keys is a validation error, not a shortcut.
+
+provider: TODO # lowercase slug, must equal this directory's name
+spec_version: "2.0"
+
+# Always exactly "native". This one line is what routes the whole
+# repository — validate, replay, lint, the catalog, and every runtime —
+# down the native path instead of the manifest path.
+implementation: native
+
+display_name: "TODO Provider Name" # shown in the catalog and credential UI
+country: TODO # ISO-3166-1 alpha-2, e.g. ET
+currencies: [TODO] # ISO-4217 codes, each needing an entry in vectors/money/exponents.json
+
+auth:
+  # The closed CredentialShape that best fits (spec/01-domain-model.md#credentialshape):
+  # none | api_key | key_pair | triple_key | oauth2_client_credentials | hmac | mutual_tls
+  #
+  # These fields exist ONLY so a runtime can generate a generic
+  # credential-input form. Unlike a manifest, there is no auth.apply or
+  # auth.token here: applying credentials, exchanging tokens and signing
+  # requests are all your native implementation's job. Never put a
+  # literal secret value in this file (Invariant I9) — name the field, do
+  # not carry its value.
+  shape: TODO
+  fields:
+    - name: TODO_credential_field
+      description: >-
+        TODO: what this value is, where the integrator gets it from the
+        provider, and how it is used. Be specific enough that someone
+        holding a merchant account can tell which value you mean.
+
+capabilities:
+  # Every operation listed here needs cassette coverage under cassettes/,
+  # exactly as a manifest-driven provider does.
+  operations: [collect, sync]
+
+  # Every NextAction variant your native implementation can emit.
+  # `esiipayment validate` CANNOT cross-check this against flows the way
+  # it does for a manifest — there are no flows to check — so this list is
+  # a promise your own conformance suite is responsible for keeping.
+  next_actions: [TODO]
+
+  currencies:
+    TODO:
+      min_amount: 0 # smallest chargeable amount, in minor units
+      max_amount: 0 # largest chargeable amount, in minor units

@@ -47,6 +47,17 @@ This is a checklist for yourself, not a substitute for actually running
 - [ ] **Replay against real providers.** `chapa`, `arifpay`, and
       `santimpay`'s cassettes all pass too, unmodified harness.
       ([8](08-replay-against-mock.md))
+- [ ] **Native providers — only if you implement any.** Supporting none is
+      fully conformant. For each one you do support: it is reachable
+      through the same public client type and the same operation methods
+      as a manifest provider (Invariant I12); the shared invariants
+      (I2/I4/I7/I8) come from one place both kinds go through, not
+      re-derived per provider; its cassettes replay byte-identically to
+      its `expected/*.json` in *your* suite, since `esiipayment replay`
+      cannot do it for you; and your README states which native providers
+      you implement rather than leaving integrators to guess from the
+      provider catalog.
+      ([spec/07-runtime-requirements.md#native-providers](../../../spec/07-runtime-requirements.md))
 - [ ] **The engine.** Idempotency vector
       (`vectors/errors/idempotency-conflict.json`) passing against your
       real persistence layer. Four invariant tests passing: a chaos

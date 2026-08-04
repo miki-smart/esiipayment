@@ -1,0 +1,52 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Illustrative only: this is NOT a cassette for the TODO-filled
+# capabilities.yaml in this directory. It exists to show that a native
+# provider's cassettes are the SAME cassettes, in the same schema, as a
+# manifest-driven provider's — the native path changes who executes them,
+# not what they look like. Uses a fictional "Example Bank" whose API
+# requires a signature over sorted parameters (signal 2), which is why it
+# is native at all.
+#
+# WHO REPLAYS THIS: not `esiipayment replay` — it has no manifest to
+# interpret and will print an informational message and exit 0. Your own
+# implementation's conformance suite must load this cassette, run your
+# native code against it with the seeded clock/uuid/idempotency key, and
+# assert the canonical PaymentResult is byte-identical to
+# expected/<name>.json. Same cassettes, same goldens, same
+# spec/06-conformance.md byte-identity bar, different test runner. See
+# spec/03-manifest-dsl.md#what-conformance-means-for-a-native-provider.
+#
+# ON request.body: keep it. Recording the exact wire body is what makes a
+# cassette assert request construction and not merely response mapping.
+# Omit it ONLY when the body genuinely cannot be reproduced from
+# committed fixtures — the usual case being a signature over a private
+# key you must not publish here (see providers/telebirr/cassettes/, which
+# omits bodies for exactly that reason and says so). If you omit it, say
+# why in metadata.yaml and cover request construction in your own unit
+# tests instead: an unasserted request body is a real gap, not a
+# formality.
+name: collect.success
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid: ["b41e7f92-38c5-4d16-9a70-2e5c8b1f4a63"]
+  idempotency_key: "EXAMPLE-COLLECT-SUCCESS-0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/example-bank"
+credentials:
+  merchant_id: "fixture-merchant-id"
+  api_key: "fixture-not-a-real-key"
+intent:
+  amount: 15000
+  currency: ETB
+interactions:
+  - request:
+      method: POST
+      path: /TODO/collect/endpoint
+      body: '{"amount":"150.00","currency":"ETB","merchant_id":"fixture-merchant-id","nonce":"b41e7f929","reference":"EXAMPLE-COLLECT-SUCCESS-0001","signature":"illustrative-only-not-a-real-signature"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"status":"PENDING","checkout_url":"https://pay.example-bank.test/c/9f8a7b6c","txn_id":"EB-9f8a7b6c"}'
