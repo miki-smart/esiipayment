@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/metadata.v1.schema.json
+#
+# Copy to providers/<your-provider>/metadata.yaml and fill in every TODO.
+# This file is IDENTICAL in shape for both provider kinds — a native
+# provider's metadata is validated by exactly the same schema and the same
+# checks as a manifest-driven one, and feeds the same generated catalog.
+# Only capabilities.yaml differs from the manifest track.
+
+provider: TODO_provider_slug
+
+# community: validates, cassettes present, golden output matches (the bar
+#            every first PR clears). For a native provider, "golden output
+#            matches" is asserted by your implementation's own conformance
+#            suite rather than by `esiipayment replay` — see
+#            spec/03-manifest-dsl.md#what-conformance-means-for-a-native-provider.
+# certified: adds a live sandbox run and a named maintainer.
+# official:  core-team maintained, provider acknowledged.
+# See GOVERNANCE.md for the full tier criteria. Start at "community";
+# there is no reason a first PR should claim more than this.
+tier: community
+
+description: >-
+  TODO: one or two sentences describing this provider for the generated
+  catalog (what it is, what market/channels it covers).
+
+# Required, honestly, on every non-mock provider. Do not present a guess
+# as a confirmed fact here; see docs/add-a-provider.md.
+verification:
+  status: provisional
+  docs_verified_on: null
+  verified_by: null
+  notes: >-
+    TODO: state plainly which parts of this integration are unverified and
+    where your knowledge of this provider's API came from (e.g.
+    "integrated at $employer in 2025; written from public docs and memory,
+    not from employer source code; see the clean-room note in
+    CONTRIBUTING.md").
+
+    TODO: additionally, because this is a native provider, state WHICH of
+    the five signals (spec/03-manifest-dsl.md#the-five-signals) forced the
+    native path, specifically enough that a reviewer can check the claim.
+    "Requires canonicalisation before signing: every request carries an
+    RSASSA-PSS signature over sorted k=v parameters" is checkable.
+    "Too complex for the DSL" is not, and is the single most common reason
+    a native-provider PR is sent back. providers/telebirr/metadata.yaml is
+    a filled-in example.
+
+    TODO: if any part of your provider's wire behaviour is reconstructed
+    rather than confirmed (a signing rule especially), say so here and say
+    what that means for anyone relying on it. A signing rule that is one
+    field-ordering off fails every live call, so an unverified one is not
+    a small caveat.
+
+# Required once tier is certified or official; recommended from the start
+# so reviewers know who to ask. For a native provider this matters more
+# than for a manifest: you are also implicitly the person other language
+# runtimes will ask when they implement this provider.
+maintainers:
+  - name: TODO_your_name
+    github: TODO_your_github_handle
+
+links:
+  website: https://TODO-provider-website.example
+  docs: https://TODO-provider-docs.example

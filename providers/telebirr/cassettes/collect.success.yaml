@@ -1,19 +1,43 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
-# see the PROVISIONAL banner in ../manifest.yaml.
+# Native-provider cassette: replayed by each runtime's own conformance suite,
+# not by `esiipayment replay`, which has no manifest to interpret
+# (spec/03-manifest-dsl.md#what-conformance-means-for-a-native-provider).
+#
+# The `sign` values below are credentials.replay_signature, NOT real
+# signatures. Telebirr signs with RSASSA-PSS, which salts randomly, so no
+# fixture in any repository can pin a real signature — a replaying runtime
+# substitutes a fixed signature for its signer exactly as it substitutes
+# seed.clock for its clock and seed.uuid for its UUID source. Signature
+# correctness is verified separately, by round-trip in each implementation's
+# own tests. See ../metadata.yaml.
+#
+# Starts from an already-held token (the steady state: a runtime caches the
+# Fabric token and refreshes on expiry). collect.token_exchange covers
+# acquiring one.
 name: collect.success
 operation: collect
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-COLLECT-SUCCESS-0001"
+  # Two, because a successful collect signs twice: once for the preOrder
+  # request, then again for the H5 checkout URL it builds from the prepay_id.
+  uuid:
+    - "3f2b1c8e-5a47-4c9d-8e1f-2b6a4d7c9e30"
+    - "b41e7f92-38c5-4d16-9a70-2e5c8b1f4a63"
+  idempotency_key: "TELEBIRRCOLLECTSUCCESS0001"
 environment: sandbox
 ctx:
   webhook_url: "https://merchant.example/webhooks/telebirr"
-  fabric_app_id: "fixture-merchant-app-id"
+  return_url: "https://merchant.example/thanks"
+  # Where the payer is sent. Not returned by the gateway: the merchant builds
+  # this URL itself, which is the second reason this provider is native.
+  web_base_url: "https://developerportal.ethiotelebirr.et:38443/payment/web/paygate?"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent:
   amount: 15000
   currency: ETB
@@ -21,9 +45,12 @@ interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/preOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-COLLECT-SUCCESS-0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        # The raw token, with no "Bearer " prefix.
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"3f2b1c8e5a474c9d8e1f2b6a4d7c9e30","method":"payment.preorder","version":"1.0","biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","trade_type":"Checkout","appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRCOLLECTSUCCESS0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m","business_type":"BuyGoods","payee_identifier":"999999","payee_identifier_type":"04","payee_type":"5000","redirect_url":"https://merchant.example/thanks","callback_info":"esiipayment"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"prepay_id":"TB2026011509300001","toPayUrl":"https://h5.telebirr.et/payment/pay?prepayId=TB2026011509300001"}}'
+      body: '{"result":"SUCCESS","code":"0","msg":"ok","biz_content":{"merch_order_id":"TELEBIRRCOLLECTSUCCESS0001","prepay_id":"prepayb2f41c9e7d3a48f0"}}'

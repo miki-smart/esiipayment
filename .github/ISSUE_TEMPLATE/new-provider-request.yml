@@ -8,7 +8,17 @@ body:
       value: |
         Read [docs/add-a-provider.md](../../docs/add-a-provider.md) first —
         it walks through the whole process. This issue is for requesting
-        or claiming a provider, not for the manifest PR itself.
+        or claiming a provider, not for the adapter PR itself.
+
+        Almost every provider is onboarded as a **manifest** (one YAML
+        file, no programming, works in every runtime at once). A small
+        number need the **native** path instead — code per language
+        runtime — because the DSL structurally cannot describe them. If
+        you already suspect that applies here, say so in the last field
+        and name the specific obstacle;
+        [Step 0](../../docs/tutorials/add-a-provider/00-which-kind.md)
+        walks the decision. Getting talked out of a native
+        implementation is a good outcome.
   - type: input
     id: provider-name
     attributes:
@@ -26,7 +36,7 @@ body:
   - type: dropdown
     id: intent
     attributes:
-      label: Are you volunteering to write this manifest?
+      label: Are you volunteering to write this adapter?
       options:
         - "Yes, I'll open the PR myself"
         - "No, I'm requesting someone else pick this up"
@@ -41,4 +51,17 @@ body:
         experience written up from memory (never from an employer's
         proprietary source — see the clean-room note in CONTRIBUTING.md).
         This isn't a gate to request a provider, but if you plan to write
-        the manifest yourself it's worth thinking about now.
+        the adapter yourself it's worth thinking about now.
+  - type: textarea
+    id: expressibility
+    attributes:
+      label: Anything about this provider's API that a manifest might not be able to describe?
+      description: >-
+        Optional, and only answer if something specific comes to mind: a
+        signature over sorted/concatenated parameters rather than the raw
+        body, an opaque session or cookie carried between calls, a
+        non-HTTP channel (SOAP, gRPC, a vendor SDK, a USSD gateway), or a
+        status you can only classify by combining two fields. Those are
+        the signals that mean the native path. Anything else — verbose
+        status vocabularies, many error cases, an inelegant flow — is
+        still an ordinary manifest.

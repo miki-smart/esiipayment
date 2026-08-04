@@ -3,13 +3,13 @@
 
 # Provider Catalog
 
-| Provider | Country | Tier | Verification | Currencies | Operations |
-|---|---|---|---|---|---|
-| ArifPay (arifpay) | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
-| Chapa (chapa) | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
-| Mock (Reference Implementation) (mock) | ET | official | ✅ verified | ETB, USD | collect, sync, payout, cancel, refund, webhook |
-| SantimPay (santimpay) | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
-| Telebirr (telebirr) | ET | community | ⚠️ provisional | ETB | collect, sync |
+| Provider | Kind | Country | Tier | Verification | Currencies | Operations |
+|---|---|---|---|---|---|---|
+| ArifPay (arifpay) | manifest | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
+| Chapa (chapa) | manifest | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
+| Mock (Reference Implementation) (mock) | manifest | ET | official | ✅ verified | ETB, USD | collect, sync, payout, cancel, refund, webhook |
+| SantimPay (santimpay) | manifest | ET | community | ⚠️ provisional | ETB | collect, sync, webhook |
+| Telebirr (telebirr) | [native](https://spec.esiipayment.et/spec/03-manifest-dsl/#native-providers) | ET | community | ⚠️ provisional | ETB | collect, sync |
 
 # Capability Matrix
 

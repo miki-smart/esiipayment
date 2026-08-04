@@ -1,28 +1,38 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
-# see the PROVISIONAL banner in ../manifest.yaml. trade_status: PAY_PENDING
-# is NOT a confirmed real Telebirr status value; see the disclosure in
-# ../metadata.yaml and ../manifest.yaml's banner comment.
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# WAIT_PAY is a CONFIRMED literal, observed from the live sandbox on
+# 2026-08-04: the order exists and is awaiting the payer. It replaced an
+# invented PAY_PENDING, which no gateway ever returns. A runtime meeting an
+# order_status it does not recognise must behave exactly as it does here
+# anyway — Processing + Poll, never a guess — which is what let this
+# implementation handle WAIT_PAY correctly before anyone knew the name.
 name: sync.poll
 operation: sync
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-SYNC-POLL-0001"
+  uuid: ["1c5e7a93-4b28-4d61-8a39-7e2f6b4c8d05"]
+  idempotency_key: "TELEBIRRSYNCPOLL0001"
 environment: sandbox
-ctx:
-  fabric_app_id: "fixture-merchant-app-id"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent: {}
 interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/queryOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-SYNC-POLL-0001"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"1c5e7a934b284d618a397e2f6b4c8d05","method":"payment.queryorder","version":"1.0","biz_content":{"appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRSYNCPOLL0001"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"merch_order_id":"TELEBIRR-SYNC-POLL-0001","trade_status":"PAY_PENDING"}}'
+      body: '{"result":"SUCCESS","code":"0","msg":"success","nonce_str":"ab408a3755724672a7b54d8a573eacd9","sign_type":"SHA256WithRSA","biz_content":{"merch_order_id":"TELEBIRRSYNCPOLL0001","order_status":"WAIT_PAY","trans_currency":"ETB","total_amount":"150.00"}}'

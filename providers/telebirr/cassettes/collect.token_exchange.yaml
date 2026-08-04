@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
+#
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# The two-call sequence a manifest could not express, and half the reason
+# this provider is native: no cached token is held, so the
+# fabricAppId/appSecret exchange runs first and its token authorizes the
+# preOrder that follows. Note the token call is the one request that is NOT
+# signed — there is no token to authorize it yet, and its body carries only
+# the app secret. The observable PaymentResult is identical to
+# collect.success: the exchange is plumbing an integrator never sees
+# (Invariant I12).
+name: collect.token_exchange
+operation: collect
+seed:
+  clock: "2026-01-15T09:30:00Z"
+  uuid:
+    - "7c4e2a90-6b13-4f8a-9d25-1e8f3a6b4c72"
+    - "1c5e7a93-4b28-4d61-8a39-7e2f6b4c8d05"
+  idempotency_key: "TELEBIRRCOLLECTTOKEN0001"
+environment: sandbox
+ctx:
+  webhook_url: "https://merchant.example/webhooks/telebirr"
+  return_url: "https://merchant.example/thanks"
+  web_base_url: "https://developerportal.ethiotelebirr.et:38443/payment/web/paygate?"
+credentials:
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
+intent:
+  amount: 15000
+  currency: ETB
+interactions:
+  - request:
+      method: POST
+      path: /payment/v1/token
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+      body: '{"appSecret":"fixture-not-a-real-secret"}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      # UNVERIFIED shape. Note there is no expires_in: the lifetime is an
+      # absolute expirationDate in yyyyMMddHHmmss, which a runtime must parse
+      # to know when to refresh.
+      body: '{"token":"fixture-exchanged-token","effectiveDate":"20260115093000","expirationDate":"20260115103000"}'
+  - request:
+      method: POST
+      path: /payment/v1/merchant/preOrder
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-exchanged-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"7c4e2a906b134f8a9d251e8f3a6b4c72","method":"payment.preorder","version":"1.0","biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","trade_type":"Checkout","appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRCOLLECTTOKEN0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m","business_type":"BuyGoods","payee_identifier":"999999","payee_identifier_type":"04","payee_type":"5000","redirect_url":"https://merchant.example/thanks","callback_info":"esiipayment"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
+    response:
+      status: 200
+      headers: { content-type: application/json }
+      body: '{"result":"SUCCESS","code":"0","msg":"ok","biz_content":{"merch_order_id":"TELEBIRRCOLLECTTOKEN0001","prepay_id":"prepay4d81f6a03b7c29e5"}}'

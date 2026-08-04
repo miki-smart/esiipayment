@@ -124,10 +124,55 @@ provider identifier meant to be branched on. A runtime may expose the
 active provider's name for logging/display purposes, but nothing in its
 documented API should invite or require an integrator to switch on it.
 
+## Native providers
+
+A small number of providers cannot be expressed as a manifest and are
+declared instead as a `capabilities.yaml` with `implementation: native`
+(see [03-manifest-dsl.md#native-providers](03-manifest-dsl.md#native-providers)).
+Supporting any of them is optional — a runtime is conformant with none
+(see [06-conformance.md](06-conformance.md#what-conformant-means)) — but a
+runtime that does support one must satisfy all of the following.
+
+**One public surface.** A native provider must be reachable through the
+same public client type and the same operation methods as a
+manifest-driven one. If an integrator has to hold it in a
+differently-typed variable, call a different method, or handle its results
+through a different code path, the native path has leaked into integrator
+code and [Invariant I12](02-invariants.md#i12) is broken — the whole point
+of this contract is that swapping providers is a configuration change, not
+a code change. In practice this means the runtime's client is an interface
+(or equivalent) that both the manifest interpreter and each native
+implementation satisfy, not a concrete manifest-bound class.
+
+**The invariants still bind, and should not be reimplemented.** A native
+implementation is exempt from the DSL, not from the semantics. It must
+persist the idempotency record before its first network call
+([I8](02-invariants.md#i8)), return `DuplicateRequest` for a repeated key
+with a different payload ([I7](02-invariants.md#i7)), return an existing
+terminal result without a further provider call
+([I2](02-invariants.md#i2)), and never report an indeterminate outcome as
+`Failed` ([I4](02-invariants.md#i4)) — a transport timeout resolves to
+`Processing` with a `Poll` action, exactly as the interpreter does it.
+Because these are the rules most easily got subtly wrong once per
+provider, a runtime should factor them into a shared native-provider base
+that implementations inherit, rather than leaving each one to re-derive
+them.
+
+**Loading.** `capabilities.yaml` is validated against
+`schema/capabilities.v1.schema.json`, not the manifest schema, and carries
+no `environments`/`flows`/`errors`/`webhook` to load. Base URLs and
+endpoint paths for a native provider come from the runtime's own
+configuration. `auth.fields` is still the source of the credential form,
+and [Invariant I9](02-invariants.md#i9) still applies.
+
+**Documented support.** The runtime must state which native providers it
+implements. The provider catalog in this repository lists a native
+provider for every runtime; only the runtime can say whether it has one.
+
 ## Conformance suite
 
-A runtime must ship a test suite that, for every provider in this
-repository:
+A runtime must ship a test suite that, for every manifest-driven provider
+in this repository:
 
 - Validates the provider's manifest.
 - Replays every cassette and asserts byte-identical canonical JSON against
@@ -137,3 +182,11 @@ repository:
 This is what `conformance-matrix.yml` invokes across all runtimes for every
 manifest change, and what makes "identical behaviour across five languages"
 a CI-enforced fact rather than an aspiration.
+
+For every native provider the runtime implements, the same suite must
+additionally replay that provider's cassettes through the native
+implementation and assert the same byte-identical goldens. This
+repository's CI cannot do it for you: `esiipayment replay` has no manifest
+to interpret and exits 0 with an informational message, so a native
+provider whose goldens are never asserted anywhere is indistinguishable
+from one that is quietly wrong.

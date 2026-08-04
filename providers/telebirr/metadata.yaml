@@ -10,40 +10,140 @@ description: >-
   service by user base.
 
 verification:
+  # A live sandbox run on 2026-08-04 DID succeed (see notes), so the honest
+  # reason this is still provisional is narrower than it was: `verified`
+  # requires docs_verified_on AND verified_by, and verified_by names a human
+  # who is accountable for the claim. Whoever ran or reproduces that run
+  # should put their handle here and set the date; the evidence is recorded
+  # below either way. Tier `certified` additionally wants a named entry in
+  # `maintainers` (see GOVERNANCE.md), which is why tier is still community.
   status: provisional
   docs_verified_on: null
   verified_by: null
   notes: >-
-    Endpoint paths (/payment/v1/merchant/preOrder, /payment/v1/merchant/queryOrder,
-    /payment/v1/token), the biz_content request/response wrapper, field
-    names (merch_order_id, total_amount, trans_currency, toPayUrl,
-    appid), and the trade_status vocabulary (PAY_SUCCESS, PAY_FAILED,
-    PAY_CANCEL) are reconstructed from Telebirr's public Fabric/H5
-    developer-portal method names and several independently-maintained
-    open-source Telebirr client libraries -- not confirmed first-hand
-    against Ethio Telecom's current merchant documentation or a live
-    sandbox account. PAY_PENDING is NOT a confirmed real trade_status
-    value: it is invented here, exactly as docs/tutorial.md's own teaching
-    example already discloses doing for the same field, purely so the
-    sync flow has a Processing+Poll path, since public sources did not
-    surface a genuine "still awaiting payer confirmation" status literal.
-    Auth is modeled as a simplified oauth2_client_credentials bearer-token
-    exchange (fabricAppId/fabricAppSecret -> access token). This
-    deliberately omits Telebirr's real requirement that every request past
-    the token exchange be additionally signed (RSA-PSS / SHA256WithRSA
-    over a canonicalized parameter string, with its own
-    nonce_str/timestamp/sign/sign_type fields): the manifest DSL has no
-    canonicalization-before-signing transform (see
-    spec/03-manifest-dsl.md#native-providers), so that signing step is not
-    modeled. A production integration would need a native implementation
-    of that signature step in each language runtime; this manifest alone
-    is not sufficient to place a real charge against Ethio Telecom's live
-    systems. The sandbox host (196.188.120.3:38443) is recalled from
-    publicly-shared Fabric/H5 sample integrations, not independently
-    reconfirmed. Knowledge of this provider came from public
-    developer-portal references and third-party open-source client
-    libraries, not from any employer's proprietary source (see the
-    clean-room norm in CONTRIBUTING.md).
+    NATIVE PROVIDER (capabilities.yaml, no manifest.yaml). Two independent
+    reasons, either sufficient: (1) every request past the token exchange
+    carries a signature over a canonicalized parameter string, and (2) the
+    payer's checkout URL is not returned by the gateway but built and
+    separately signed by the merchant. See capabilities.yaml for both.
+
+    CONFIRMED BY A LIVE SANDBOX RUN, 2026-08-04, against
+    developerportal.ethiotelebirr.et:38443 (base path
+    /apiaccess/payment/gateway). A collect and a sync both returned
+    result "SUCCESS" / code "0": preOrder created order
+    ESIILIVE20260803223307 and returned a prepay_id, and queryOrder
+    resolved it. The gateway ACCEPTED the RSASSA-PSS signature, which in one
+    exchange confirms the canonicalization rule, the PSS padding, the
+    millisecond timestamp, the method/version fields, the full biz_content
+    field set, both app ids being distinct, the X-APP-Key header and the bare
+    Authorization value. Two details learned only from the live run: the
+    token string returned by the exchange ALREADY begins with "Bearer ", so
+    the Authorization header must carry it verbatim and adding a prefix
+    yields "Bearer Bearer ..."; and the awaiting-payer status literal is
+    WAIT_PAY, not the PAY_PENDING that earlier revisions of this file
+    invented. TLS to this host validates normally with no pinning and no
+    trust-all handler — an earlier assumption that the gateway lives at a
+    bare IP with a bad certificate was simply wrong for the sandbox.
+
+    WHAT WAS ALREADY KNOWN-GOOD from a working production integration of
+    this gateway rather than inferred from public method names: the endpoint
+    paths (/payment/v1/token,
+    /payment/v1/merchant/preOrder, /payment/v1/merchant/queryOrder); that
+    every call carries the fabricAppId as an "X-APP-Key" header and the
+    bearer token as a bare "Authorization" value with no "Bearer " prefix;
+    that the token call's body is just {"appSecret": ...} and its response is
+    {token, effectiveDate, expirationDate} with an absolute expiry in
+    yyyyMMddHHmmss and no expires_in; the signed top-level envelope
+    (timestamp in EPOCH MILLISECONDS, nonce_str as a dashless UUID, method
+    "payment.preorder"/"payment.queryorder", version "1.0", sign_type,
+    sign); the canonicalization rule (biz_content flattened one level into
+    the top-level parameters, non-string values dropped entirely, the fields
+    sign/sign_type/header/refund_info/openType/raw_request excluded, keys
+    sorted ascending, joined as k=v pairs with "&"); that the signature is
+    RSASSA-PSS with SHA-256 even though sign_type reads "SHA256WithRSA";
+    the full biz_content field set including trade_type, merch_code,
+    business_type, payee_identifier, payee_identifier_type "04", payee_type
+    "5000"; that the response envelope carries result "SUCCESS" plus a
+    numeric code "0" rather than code "SUCCESS"; that the settled status
+    lives at biz_content.order_status (NOT trade_status) with PAY_SUCCESS
+    for success; and that preOrder returns only a prepay_id, from which the
+    merchant builds the H5 URL over
+    appid/merch_code/nonce_str/prepay_id/timestamp plus its own signature.
+
+    WHAT IS STILL UNVERIFIED, after that run. Nobody has completed a payment
+    on the H5 page, so every settled-status path is untested: WAIT_PAY and
+    PAY_SUCCESS are corroborated but PAY_CANCEL and PAY_FAILED are still only
+    modelled, and no runtime has seen a real Succeeded or Canceled result
+    from this provider. Whether HTTP 401 is genuinely how an expired token
+    surfaces. Whether Telebirr distinguishes decline reasons at queryOrder
+    (modelled as one generic AuthorizationDeclined). Whether the H5 page
+    accepts the base64 signature in the checkout URL unencoded, as both this
+    implementation and the reference one send it. The per-currency limits in
+    capabilities.yaml are placeholders. Production hosts differ from the
+    developer-portal sandbox and are not confirmed. Also observed but not
+    confirmed as a documented rule: merch_order_id appears to be rejected
+    unless alphanumeric, which is why every fixture key here is alphanumeric
+    -- an integrator using hyphenated or prefixed order ids should test that
+    before relying on it.
+
+    THE PAYGATE BLOCKER, established 2026-08-04 and unresolved. Orders are
+    created successfully, but the payer-facing web page
+    (/payment/web/paygate) rejects every checkout URL with error_code
+    60320006, "the required parameter of the request is empty, or the
+    parameter is incorrectly filled". This is NOT believed to be a defect in
+    URL construction, on the following evidence. The page's required
+    parameter set was enumerated by removing parameters one at a time --
+    absence yields HTTP 400 naming the parameter, e.g. "sign
+    error.common.param.illegal" -- and it is exactly the nine this
+    implementation sends: appid, merch_code, nonce_str, prepay_id, timestamp,
+    sign, sign_type, version, trade_type. Sixteen signature variants (bases of
+    5/7 fields with and without sign_type, RSASSA-PSS and PKCS#1 v1.5, raw and
+    percent-encoded) all return byte-identical responses, as do millisecond
+    and second timestamps, as do orders created with trade_type Checkout,
+    WebCheckout and PWA. Deliberately corrupt parameter values return the same
+    code as correct ones, so the page rejects BEFORE evaluating them. The
+    reference integration's own URL format is identical to this one and fails
+    the same way.
+
+    That pattern points at merchant-side enablement for the web flow rather
+    than at request shape, and closing it needs Ethio Telecom: confirmation
+    that this sandbox merchant app is provisioned for a browser checkout
+    trade type, and the official paygate parameter specification. Worth
+    checking first, because it is far cheaper than any further probing:
+    whether any existing integration's web checkout URL currently works
+    against this same sandbox app.
+
+    USEFUL VOCABULARY discovered from the gateway's own validator, which names
+    missing fields and lists legal enum values when given an invalid one. The
+    full trade_type enum is [InApp, Cross-App, Checkout, WebCheckout, PWA,
+    QrCode, NativeApp, BankTrade, Mandate] -- note WebCheckout and PWA, which
+    no reference material here mentioned. /payment/v1/auth/applyH5Token
+    requires biz_content.auth_identifier and auth_identifier_type and accepts
+    ONLY trade_type InApp, so it is not a prerequisite of the web flow. This
+    validator is the most effective tool for mapping this gateway: send a
+    deliberately invalid enum and it replies with the permitted set.
+
+    A KNOWN HARDENING GAP, not a correctness one: the gateway signs its own
+    responses (they carry nonce_str/sign/sign_type), and no runtime verifies
+    them. Doing so needs Telebirr's public key, which is not in this
+    repository. Until then a runtime is trusting the TLS channel alone for
+    response integrity -- acceptable, but worth knowing before treating a
+    queryOrder result as authoritative for releasing goods.
+
+    WHY THE CASSETTES CARRY A replay_signature FIXTURE. The signature is
+    RSASSA-PSS, which salts randomly: the same request signed twice produces
+    two different valid signatures. No fixture in any repository can
+    therefore pin a real one, and a golden PaymentResult whose
+    next_action.url embeds a signature would never be byte-identical twice.
+    A replaying runtime substitutes a fixed signature for its signer exactly
+    as it substitutes seed.clock for its clock and seed.uuid for its UUID
+    source, and asserts signature correctness separately by verifying a
+    round trip against a locally generated key. This is the same class of
+    determinism seam as clock and uuid; a future seed.signature field would
+    be its principled home, which is a spec RFC rather than something to
+    invent per provider (see GOVERNANCE.md). Until then it lives in
+    credentials, whose documented purpose in cassette.v1.schema.json is
+    exactly to make signature computation reproducible during replay.
 
 maintainers: []
 

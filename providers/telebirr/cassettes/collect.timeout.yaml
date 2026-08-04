@@ -1,19 +1,31 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
 # The preOrder request was sent but no response was ever received. Per
-# Invariant I4, this must resolve to Processing + Poll, never Failed.
+# Invariant I4 this must resolve to Processing + Poll, never Failed: the
+# order may exist and the payer may yet pay it. The timeout is on the payment
+# call rather than the token exchange, so a runtime cannot satisfy I4 by
+# reasoning "no charge was attempted" — it genuinely does not know.
 name: collect.timeout
 operation: collect
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-COLLECT-TIMEOUT-0001"
+  uuid: ["2d7a9e14-4f83-4c25-9b61-8e3f5a2c7d94"]
+  idempotency_key: "TELEBIRRCOLLECTTIMEOUT0001"
 environment: sandbox
 ctx:
   webhook_url: "https://merchant.example/webhooks/telebirr"
-  fabric_app_id: "fixture-merchant-app-id"
+  return_url: "https://merchant.example/thanks"
+  web_base_url: "https://developerportal.ethiotelebirr.et:38443/payment/web/paygate?"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent:
   amount: 15000
   currency: ETB
@@ -22,5 +34,7 @@ interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/preOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-COLLECT-TIMEOUT-0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"2d7a9e144f834c259b618e3f5a2c7d94","method":"payment.preorder","version":"1.0","biz_content":{"notify_url":"https://merchant.example/webhooks/telebirr","trade_type":"Checkout","appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRCOLLECTTIMEOUT0001","title":"Merchant order","total_amount":"150.00","trans_currency":"ETB","timeout_express":"120m","business_type":"BuyGoods","payee_identifier":"999999","payee_identifier_type":"04","payee_type":"5000","redirect_url":"https://merchant.example/thanks","callback_info":"esiipayment"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'

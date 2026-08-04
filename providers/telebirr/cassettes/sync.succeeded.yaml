@@ -1,26 +1,36 @@
 # yaml-language-server: $schema=https://spec.esiipayment.et/schema/cassette.v1.schema.json
 #
-# Illustrative reconstruction, not recorded real Telebirr sandbox traffic;
-# see the PROVISIONAL banner in ../manifest.yaml.
+# Native-provider cassette; `sign` is the credentials.replay_signature
+# fixture, not a real signature. See collect.success.yaml's header and
+# ../metadata.yaml for both conventions.
+#
+# The settled-success path. The status lives at biz_content.order_status —
+# note NOT trade_status — and PAY_SUCCESS is the one value in this vocabulary
+# corroborated against a working integration; the others in the sibling
+# cassettes are not (see ../metadata.yaml).
 name: sync.succeeded
 operation: sync
 seed:
   clock: "2026-01-15T09:30:00Z"
-  uuid: []
-  idempotency_key: "TELEBIRR-SYNC-SUCCEEDED-0001"
+  uuid: ["4b6c8d20-7e59-4a31-8f47-3c9b2e5d1a68"]
+  idempotency_key: "TELEBIRRSYNCSUCCEEDED0001"
 environment: sandbox
-ctx:
-  fabric_app_id: "fixture-merchant-app-id"
 credentials:
-  access_token: "fixture-not-a-real-token"
+  fabric_app_id: "fixture-fabric-app-id"
+  app_secret: "fixture-not-a-real-secret"
+  merchant_app_id: "fixture-merchant-app-id"
+  merchant_code: "999999"
+  replay_signature: "UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="
 intent: {}
 interactions:
   - request:
       method: POST
       path: /payment/v1/merchant/queryOrder
-      headers: { Authorization: "Bearer fixture-not-a-real-token" }
-      body: '{"biz_content":{"appid":"fixture-merchant-app-id","merch_order_id":"TELEBIRR-SYNC-SUCCEEDED-0001"}}'
+      headers:
+        X-APP-Key: "fixture-fabric-app-id"
+        Authorization: "fixture-not-a-real-token"
+      body: '{"timestamp":"1768469400000","nonce_str":"4b6c8d207e594a318f473c9b2e5d1a68","method":"payment.queryorder","version":"1.0","biz_content":{"appid":"fixture-merchant-app-id","merch_code":"999999","merch_order_id":"TELEBIRRSYNCSUCCEEDED0001"},"sign_type":"SHA256WithRSA","sign":"UkVQTEFZX0ZJWEVEX1NJR05BVFVSRQ=="}'
     response:
       status: 200
       headers: { content-type: application/json }
-      body: '{"code":"SUCCESS","msg":"OK","biz_content":{"merch_order_id":"TELEBIRR-SYNC-SUCCEEDED-0001","trade_status":"PAY_SUCCESS"}}'
+      body: '{"result":"SUCCESS","code":"0","msg":"ok","biz_content":{"merch_order_id":"TELEBIRRSYNCSUCCEEDED0001","order_status":"PAY_SUCCESS","total_amount":"150.00","trans_time":"20260115093500","trans_id":"tx7f3a91c40be256d"}}'

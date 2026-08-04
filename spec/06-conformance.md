@@ -114,15 +114,50 @@ A **runtime** is conformant for a given `spec_version` when it:
   status transitions, error/retry mapping, webhook verification,
   canonical JSON),
 - Produces byte-identical golden output, per the rules above, for every
-  cassette of every provider in this repository, and
+  cassette of every **manifest-driven** provider in this repository, and
 - Implements every requirement in
   [07-runtime-requirements.md](07-runtime-requirements.md).
+
+Native providers ([03-manifest-dsl.md#native-providers](03-manifest-dsl.md#native-providers))
+are deliberately **not** in that list. A runtime cannot execute one by
+interpreting data — someone has to write that provider in that language —
+so requiring all of them would make conformance depend on how much
+volunteer effort a given language has attracted, which is not a property
+of the runtime. A runtime is therefore fully conformant while supporting
+no native providers at all.
+
+What is required is honesty and equality of treatment:
+
+- A runtime must **document which native providers it implements**, and
+  must not imply support it does not have. An integrator reading the
+  provider catalog sees Telebirr listed; only the runtime can tell them
+  whether *this* runtime can talk to it.
+- For each native provider it does implement, the bar is exactly the
+  manifest bar, self-asserted: **the same cassettes, the same
+  `expected/*.json`, byte-identical canonical JSON**, in that runtime's
+  own conformance suite, because `esiipayment replay` has no manifest to
+  interpret on its behalf. "Equivalent" output is not conformant output.
+- That provider must be reachable through the same public API surface as
+  a manifest-driven one, per
+  [07-runtime-requirements.md#native-providers](07-runtime-requirements.md#native-providers).
 
 A **provider manifest** is conformant when `esiipayment validate` passes
 against it (schema plus the semantic checks in
 [03-manifest-dsl.md](03-manifest-dsl.md)) and `esiipayment replay --assert-golden`
 passes against its own cassettes on at least one reference runtime.
-Conformance of the manifest does not by itself certify the manifest's
-factual accuracy against the real provider's live API; see the
-`verification.status` field on every provider's `metadata.yaml` and the
-adapter tiers in [GOVERNANCE.md](../GOVERNANCE.md) for that separate axis.
+
+A **native provider** is conformant when `esiipayment validate` passes
+against its `capabilities.yaml`, `metadata.yaml` and cassette/golden
+coverage, and at least one runtime's own conformance suite replays those
+same cassettes to those same golden files byte-identically. The second
+half is a claim this repository's CI cannot check —
+`esiipayment replay` exits 0 with an informational message — so a native
+provider's `metadata.yaml` should say where that verification actually
+happens.
+
+Conformance of either kind does not by itself certify factual accuracy
+against the real provider's live API; see the `verification.status` field
+on every provider's `metadata.yaml` and the adapter tiers in
+[GOVERNANCE.md](../GOVERNANCE.md) for that separate axis. A provider can
+be fully conformant, replay perfectly, and still be unable to take money
+— because every cassette in it was reconstructed rather than recorded.
